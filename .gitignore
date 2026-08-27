@@ -1,0 +1,8 @@
+.clasp.json
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
