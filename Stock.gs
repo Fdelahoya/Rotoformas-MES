@@ -73,6 +73,7 @@ function buildStockMovementsFromResumen_() {
   let peMasaKg = 0;
   let peRecicladoKg = 0;
   let insertoV4Uds = 0;
+  let pigmento301Kg = 0;
   let pigmento300Kg = 0;
 
   for (let i = 0; i < data.length; i++) {
@@ -130,6 +131,12 @@ function buildStockMovementsFromResumen_() {
     if (sku === "PORTATAPAS") {
       insertoV4Uds += uds * 24;
       pigmento300Kg += uds * 0.09;
+    }
+
+    // Consumos especiales de PORTATAPAS OVAL2000
+    if (sku === "PORTATAPAS OVAL2000") {
+     insertoV4Uds += uds * 20;
+     pigmento301Kg += uds * 0.90;
     }
 
     // Consumos especiales de LAV 26
@@ -213,6 +220,22 @@ function buildStockMovementsFromResumen_() {
       tipo: "RM",
       unidad: "kg",
       movimiento: round2_(pigmento300Kg),
+      sentido: "-",
+      estado: info ? "OK" : "SKU no encontrado en Holded Raw"
+    });
+  }
+
+  if (pigmento301Kg > 0) {
+    const info = holdedIdx[normalizeKey_("PIG301")];
+    movimientos.push({
+      sku: "PIG301",
+      producto: info ? info.nombre : "",
+      productId: info ? info.productId : "",
+      parentId: info ? info.parentId : "",
+      kind: info ? info.kind : "",
+      tipo: "RM",
+      unidad: "kg",
+      movimiento: round2_(pigmento301Kg),
       sentido: "-",
       estado: info ? "OK" : "SKU no encontrado en Holded Raw"
     });
