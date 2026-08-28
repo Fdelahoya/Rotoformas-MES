@@ -1,5 +1,4 @@
 const HOLDED_STOCK = {
-  apiKey: "5a88a6a507bece40129d8f390c8a41e9",
   warehouseId: "6900db4e6a7a552ad20df16b",
   baseUrl: "https://api.holded.com/api/invoicing/v1"
 };
@@ -337,7 +336,7 @@ function applyStockMovements() {
       const response = UrlFetchApp.fetch(url, {
         method: "put",
         headers: {
-          "key": HOLDED_STOCK.apiKey,
+          "key": getHoldedApiKey_(),
           "accept": "application/json",
           "content-type": "application/json"
         },
@@ -466,3 +465,4 @@ function writeHoldedLog_(rows) {
 
   sh.autoResizeColumns(1, headers.length);
 }
+

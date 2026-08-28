@@ -1,44 +1,23 @@
-# Rotoformas MES - Registro de funcionalidades
+# Funcionalidades
 
-Este documento recoge las funcionalidades implementadas en el MES de Rotoformas.
+## F-002 - Sincronización de costes desde Holded
 
----
+**Estado:** implementada
 
-# F-001 - Soporte para Portatapas Oval2000
+Al ejecutar **Rotoformas → Holded → Actualizar catálogo Holded**:
 
-**Estado:** ✅ Completada
+- se descarga el catálogo de productos de Holded;
+- `Holded Raw` mantiene una fila por SKU, tanto para productos simples como para variantes;
+- se guarda el campo `cost` de cada producto simple o variante en la columna `Coste medio`;
+- se localizan los SKUs `PE NATURAL`, `PE MASA` y `PE RECICLADO`;
+- sus costes se escriben, respectivamente, en `Parametros manuales!H2:J2`.
 
-**Fecha:** 28/08/2026
+La actualización valida que los tres costes estén presentes y sean numéricos antes de modificar las hojas. Si falta alguno, conserva los últimos datos válidos y muestra un error con los SKUs pendientes.
 
-## Objetivo
+La autenticación utiliza la propiedad privada de Apps Script `HOLDED_API_KEY`; la clave no se guarda en el código fuente. Consulta [SETUP.md](SETUP.md) para configurarla o rotarla.
 
-Añadir soporte para el nuevo producto de Contenur:
+La sincronización puede ejecutarse automáticamente todos los días alrededor de las 06:00 mediante un activador instalable. La instalación elimina previamente otros activadores del mismo proceso para evitar ejecuciones duplicadas y registra la última actualización correcta en la propiedad `HOLDED_LAST_SYNC_AT`.
 
-SKU:
+### Compatibilidad
 
-PORTATAPAS OVAL2000
-
-## Consumos
-
-| Material | Consumo |
-|----------|---------:|
-| PE NATURAL | 15 kg |
-| INSERTO V4 | 20 ud |
-| PIG301 | 0,90 kg |
-
-## Archivos modificados
-
-- Stock.gs
-
-## Observaciones
-
-El consumo de PE Natural no requiere lógica específica, ya que se calcula automáticamente a partir del peso indicado en el Resumen.
-
-## Prueba de aceptación
-
-Fabricando 2 unidades:
-
-- FG → +2
-- PE NATURAL → -30 kg
-- INSERTO V4 → -40 ud
-- PIG301 → -1,8 kg
+La columna `Coste medio` se añade al final de `Holded Raw`, de modo que las posiciones de las columnas existentes no cambian y los procesos de stock y validación siguen funcionando sin modificaciones.

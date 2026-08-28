@@ -1,17 +1,106 @@
 const HOLDED = {
   baseUrl: "https://api.holded.com/api/invoicing/v1",
-  apiKey: "5a88a6a507bece40129d8f390c8a41e9",
 
   // Ajusta esto si tu auth real usa otro header
   authHeaderName: "key",
-  authHeaderValue: (key) => key
+  authHeaderValue: (key) => key,
+
+  peCostSheet: "Parametros manuales",
+  peCostRange: "H2:J2",
+  peCostSkus: ["PE NATURAL", "PE MASA", "PE RECICLADO"]
 };
+
+const HOLDED_API_KEY_PROPERTY = "HOLDED_API_KEY";
+const HOLDED_SPREADSHEET_ID_PROPERTY = "HOLDED_SPREADSHEET_ID";
+const HOLDED_LAST_SYNC_AT_PROPERTY = "HOLDED_LAST_SYNC_AT";
+const HOLDED_SYNC_HANDLER = "syncHoldedProducts";
+const HOLDED_SYNC_TIMEZONE = "Europe/Madrid";
+
+function getHoldedApiKey_() {
+  const key = String(
+    PropertiesService.getScriptProperties()
+      .getProperty(HOLDED_API_KEY_PROPERTY) || ""
+  ).trim();
+
+  if (!key) {
+    throw new Error(
+      `Falta la propiedad de script '${HOLDED_API_KEY_PROPERTY}'. ` +
+      "Configúrala antes de usar la integración con Holded."
+    );
+  }
+
+  return key;
+}
+
+function configureHoldedApiKey() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    "Configurar Holded",
+    "Introduce la nueva clave API de Holded. Se guardará en las propiedades privadas del script.",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const key = response.getResponseText().trim();
+  if (!key) {
+    throw new Error("La clave API no puede estar vacía.");
+  }
+
+  PropertiesService.getScriptProperties()
+    .setProperty(HOLDED_API_KEY_PROPERTY, key);
+
+  ui.alert("Clave de Holded guardada correctamente.");
+}
+
+function getHoldedSpreadsheet_() {
+  const activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (activeSpreadsheet) return activeSpreadsheet;
+
+  const spreadsheetId = String(
+    PropertiesService.getScriptProperties()
+      .getProperty(HOLDED_SPREADSHEET_ID_PROPERTY) || ""
+  ).trim();
+
+  if (!spreadsheetId) {
+    throw new Error(
+      `Falta la propiedad de script '${HOLDED_SPREADSHEET_ID_PROPERTY}'. ` +
+      "Ejecuta installDailyHoldedSyncTrigger desde la hoja vinculada."
+    );
+  }
+
+  return SpreadsheetApp.openById(spreadsheetId);
+}
+
+function installDailyHoldedSyncTrigger() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) {
+    throw new Error("Abre el proyecto desde la hoja de cálculo antes de instalar el activador.");
+  }
+
+  PropertiesService.getScriptProperties()
+    .setProperty(HOLDED_SPREADSHEET_ID_PROPERTY, spreadsheet.getId());
+
+  ScriptApp.getProjectTriggers()
+    .filter(trigger => trigger.getHandlerFunction() === HOLDED_SYNC_HANDLER)
+    .forEach(trigger => ScriptApp.deleteTrigger(trigger));
+
+  ScriptApp.newTrigger(HOLDED_SYNC_HANDLER)
+    .timeBased()
+    .atHour(6)
+    .nearMinute(0)
+    .everyDays(1)
+    .inTimezone(HOLDED_SYNC_TIMEZONE)
+    .create();
+
+  console.log("Sincronización diaria de Holded instalada alrededor de las 06:00.");
+}
 
 
 function holdedRequest_(method, path) {
   const url = `${HOLDED.baseUrl}${path}`;
   const headers = {};
-  headers[HOLDED.authHeaderName] = HOLDED.authHeaderValue(HOLDED.apiKey);
+  headers[HOLDED.authHeaderName] = HOLDED.authHeaderValue(getHoldedApiKey_());
 
   const res = UrlFetchApp.fetch(url, {
     method,
@@ -31,15 +120,13 @@ function holdedRequest_(method, path) {
 
 function syncHoldedProducts() {
   const data = holdedRequest_("get", "/products");
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = "Holded Raw";
-
-  let sh = ss.getSheetByName(sheetName);
-  if (!sh) {
-    sh = ss.insertSheet(sheetName);
-  } else {
-    sh.clearContents();
+  if (!Array.isArray(data)) {
+    throw new Error("Holded no ha devuelto una lista de productos válida.");
   }
+
+  const ss = getHoldedSpreadsheet_();
+  const sheetName = "Holded Raw";
+  const materialCosts = {};
 
   const headers = [
     "SKU Holded",
@@ -51,7 +138,8 @@ function syncHoldedProducts() {
     "Precio",
     "Tipo (FG / RM)",
     "Unidad (ud / kg)",
-    "Activo (TRUE/FALSE)"
+    "Activo (TRUE/FALSE)",
+    "Coste medio"
   ];
 
   const rows = [headers];
@@ -65,8 +153,11 @@ function syncHoldedProducts() {
 
     if (item.kind === "variants" && Array.isArray(item.variants) && item.variants.length) {
       item.variants.forEach(variant => {
+        const sku = variant.sku || item.sku || "";
+        const coste = normalizeHoldedCost_(variant.cost);
+
         rows.push([
-          variant.sku || item.sku || "",
+          sku,
           nombre,
           variant.id || "",
           item.id || "",
@@ -75,12 +166,18 @@ function syncHoldedProducts() {
           variant.price ?? precio,
           tipo,
           unidad,
-          true
+          true,
+          coste ?? ""
         ]);
+
+        collectPeCost_(materialCosts, sku, coste);
       });
     } else {
+      const sku = item.sku || "";
+      const coste = normalizeHoldedCost_(item.cost);
+
       rows.push([
-        item.sku || "",
+        sku,
         item.name || "",
         item.id || "",
         "",
@@ -89,15 +186,69 @@ function syncHoldedProducts() {
         item.price ?? "",
         tipo,
         unidad,
-        true
+        true,
+        coste ?? ""
       ]);
+
+      collectPeCost_(materialCosts, sku, coste);
     }
   });
+
+  // Validamos antes de sobrescribir ninguna hoja para conservar el último dato
+  // correcto si Holded devuelve un catálogo incompleto.
+  const peCosts = getRequiredPeCosts_(materialCosts);
+  const parameterSheet = ss.getSheetByName(HOLDED.peCostSheet);
+  if (!parameterSheet) {
+    throw new Error(`No encuentro la hoja '${HOLDED.peCostSheet}'.`);
+  }
+
+  let sh = ss.getSheetByName(sheetName);
+  if (!sh) {
+    sh = ss.insertSheet(sheetName);
+  } else {
+    sh.clearContents();
+  }
 
   sh.getRange(1, 1, rows.length, headers.length).setValues(rows);
   sh.getRange(1, 1, 1, headers.length).setFontWeight("bold");
   sh.setFrozenRows(1);
   sh.autoResizeColumns(1, headers.length);
+
+  parameterSheet.getRange(HOLDED.peCostRange).setValues([peCosts]);
+
+  PropertiesService.getScriptProperties()
+    .setProperty(HOLDED_LAST_SYNC_AT_PROPERTY, new Date().toISOString());
+}
+
+function normalizeHoldedCost_(value) {
+  if (value == null || value === "") return null;
+  const cost = Number(value);
+  return Number.isFinite(cost) ? cost : null;
+}
+
+function normalizeHoldedSku_(sku) {
+  return String(sku || "").trim().toUpperCase();
+}
+
+function collectPeCost_(materialCosts, sku, cost) {
+  if (cost == null) return;
+
+  const normalizedSku = normalizeHoldedSku_(sku);
+  if (HOLDED.peCostSkus.includes(normalizedSku)) {
+    materialCosts[normalizedSku] = cost;
+  }
+}
+
+function getRequiredPeCosts_(materialCosts) {
+  const missing = HOLDED.peCostSkus.filter(sku => materialCosts[sku] == null);
+  if (missing.length) {
+    throw new Error(
+      "No se han recibido costes válidos de Holded para: " + missing.join(", ") +
+      ". No se ha actualizado ninguna hoja."
+    );
+  }
+
+  return HOLDED.peCostSkus.map(sku => materialCosts[sku]);
 }
 
 function inferTipoHolded_(nombre, sku, tags) {
