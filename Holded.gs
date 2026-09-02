@@ -11,6 +11,8 @@ const HOLDED = {
 };
 
 const HOLDED_API_KEY_PROPERTY = "HOLDED_API_KEY";
+const HOLDED_API_V2_TOKEN_PROPERTY = "HOLDED_API_V2_TOKEN";
+const HOLDED_API_V2_BASE_URL = "https://api.holded.com/api/v2";
 const HOLDED_SPREADSHEET_ID_PROPERTY = "HOLDED_SPREADSHEET_ID";
 const HOLDED_LAST_SYNC_AT_PROPERTY = "HOLDED_LAST_SYNC_AT";
 const HOLDED_SYNC_HANDLER = "syncHoldedProducts";
@@ -51,6 +53,43 @@ function configureHoldedApiKey() {
     .setProperty(HOLDED_API_KEY_PROPERTY, key);
 
   ui.alert("Clave de Holded guardada correctamente.");
+}
+
+function getHoldedApiV2Token_() {
+  const token = String(
+    PropertiesService.getScriptProperties()
+      .getProperty(HOLDED_API_V2_TOKEN_PROPERTY) || ""
+  ).trim();
+
+  if (!token) {
+    throw new Error(
+      `Falta la propiedad de script '${HOLDED_API_V2_TOKEN_PROPERTY}'. ` +
+      "Crea un token API v2 con permisos de lectura y escritura de Productos y configúralo desde el menú Rotoformas → Holded."
+    );
+  }
+
+  return token;
+}
+
+function configureHoldedApiV2Token() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    "Configurar Holded API v2",
+    "Introduce el token API v2 con permisos de lectura y escritura de Productos. Se guardará en las propiedades privadas del script.",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const token = response.getResponseText().trim();
+  if (!token) {
+    throw new Error("El token API v2 no puede estar vacío.");
+  }
+
+  PropertiesService.getScriptProperties()
+    .setProperty(HOLDED_API_V2_TOKEN_PROPERTY, token);
+
+  ui.alert("Token API v2 de Holded guardado correctamente.");
 }
 
 function getHoldedSpreadsheet_() {
@@ -116,6 +155,32 @@ function holdedRequest_(method, path) {
   }
 
   return JSON.parse(body);
+}
+
+function holdedV2Request_(method, path, payload) {
+  const options = {
+    method,
+    headers: {
+      "Authorization": `Bearer ${getHoldedApiV2Token_()}`,
+      "Accept": "application/json"
+    },
+    muteHttpExceptions: true
+  };
+
+  if (payload !== undefined) {
+    options.contentType = "application/json";
+    options.payload = JSON.stringify(payload);
+  }
+
+  const response = UrlFetchApp.fetch(`${HOLDED_API_V2_BASE_URL}${path}`, options);
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (code < 200 || code >= 300) {
+    throw new Error(`Holded v2 ${code}: ${body}`);
+  }
+
+  return body ? JSON.parse(body) : null;
 }
 
 function syncHoldedProducts() {

@@ -21,3 +21,27 @@ La sincronización puede ejecutarse automáticamente todos los días alrededor d
 ### Compatibilidad
 
 La columna `Coste medio` se añade al final de `Holded Raw`, de modo que las posiciones de las columnas existentes no cambian y los procesos de stock y validación siguen funcionando sin modificaciones.
+
+## F-003 - Coste real de fabricación por SKU
+
+**Estado:** implementada
+
+La opción **Rotoformas → Holded → Preparar costes fabricación (60 días)** calcula para cada producto fabricado:
+
+```text
+Coste unitario = suma de Coste total (€) / suma de Uds
+```
+
+El cálculo utiliza las fabricaciones de los últimos 60 días, pondera por unidades y excluye filas de total, registros sin unidades, costes no válidos y materias primas. El resultado se presenta en `Holded Costes Preview` junto con el coste actual de Holded, el número de fabricaciones, las unidades analizadas y la variación.
+
+## F-004 - Publicación de costes de fabricación en Holded
+
+**Estado:** implementada con API v2; requiere validación inicial controlada con una variante
+
+La opción **Rotoformas → Holded → Aplicar costes seleccionados** procesa únicamente las filas marcadas en `Holded Costes Preview` y exige una segunda confirmación.
+
+Antes de cada escritura se recalcula el histórico para detectar vistas previas obsoletas. Después de actualizar Holded se vuelve a leer el producto o variante y se comprueba el coste. Solo cuando la verificación coincide se actualiza `Holded Raw`. Todos los intentos quedan registrados en `Holded Costes Log`.
+
+La publicación utiliza la API v2 con los permisos `inventory:products.read` e `inventory:products.write`. Para una variante se lee primero el producto padre completo, se conserva su configuración y la lista íntegra de variantes, y se modifica únicamente el coste de la seleccionada. Como la lectura v2 devuelve vacío el campo de coste, los costes de las variantes hermanas se preservan y la escritura se verifica mediante la lectura v1. Este flujo sustituye al intento de escritura mediante API v1, que Holded rechaza con `Cannot update product variants`.
+
+Las materias primas no se actualizan mediante este proceso; sus costes continúan procediendo de Holded a través de F-002.

@@ -105,6 +105,11 @@ function onOpen() {
     .addSubMenu(
       SpreadsheetApp.getUi().createMenu("Holded")
         .addItem("Actualizar catálogo Holded", "syncHoldedProducts")
+        .addItem("Configurar token API v2", "configureHoldedApiV2Token")
+        .addSeparator()
+        .addItem("Preparar costes fabricación (60 días)", "previewManufacturingCosts")
+        .addItem("Aplicar costes seleccionados", "applySelectedManufacturingCosts")
+        .addSeparator()
         .addItem("Verificar SKUs del resumen", "verificarSkusResumen")
         .addItem("Preview movimientos stock", "previewStockMovements")
         .addItem("Aplicar movimientos stock", "applyStockMovements")
