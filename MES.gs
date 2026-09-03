@@ -106,6 +106,7 @@ function onOpen() {
       SpreadsheetApp.getUi().createMenu("Holded")
         .addItem("Actualizar catálogo Holded", "syncHoldedProducts")
         .addItem("Configurar token API v2", "configureHoldedApiV2Token")
+        .addItem("Reparar precios desde respaldo", "repairHoldedPricesFromBackup")
         .addSeparator()
         .addItem("Preparar costes fabricación (60 días)", "previewManufacturingCosts")
         .addItem("Aplicar costes seleccionados", "applySelectedManufacturingCosts")

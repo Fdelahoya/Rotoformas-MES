@@ -2,6 +2,7 @@ const MANUFACTURING_COSTS = {
   windowDays: 60,
   historySheet: "Histórico",
   rawSheet: "Holded Raw",
+  priceBackupSheet: "Holded Raw respaldo 02-09-2026",
   previewSheet: "Holded Costes Preview",
   logSheet: "Holded Costes Log",
   apiPauseMs: 700,
@@ -132,6 +133,7 @@ function readHoldedRawForCosts_(ss, requestedSheetName) {
     kind: getColIndex_(headers, "^kind$"),
     type: getColIndex_(headers, "^tipo"),
     active: getColIndex_(headers, "^activo"),
+    price: getColIndex_(headers, "^precio$"),
     cost: getColIndex_(headers, "^coste medio$")
   };
 
@@ -154,11 +156,17 @@ function readHoldedRawForCosts_(ss, requestedSheetName) {
       kind: safeStr_(row[indexes.kind]),
       type: safeStr_(row[indexes.type]),
       active: row[indexes.active] === true,
+      currentPrice: normalizeHoldedCost_(row[indexes.price]),
       currentCost: normalizeHoldedCost_(row[indexes.cost])
     };
   }
 
-  return { sheet, products, costColumn: indexes.cost + 1 };
+  return {
+    sheet,
+    products,
+    priceColumn: indexes.price + 1,
+    costColumn: indexes.cost + 1
+  };
 }
 
 function buildManufacturingCostRows_(ss) {
@@ -385,19 +393,32 @@ function findHoldedVariant_(variants, productId, sku) {
   );
 }
 
-function buildHoldedV2Variant_(variant, row, legacyVariants) {
+function getHoldedEconomicValue_(item, snakeCaseField, camelCaseField) {
+  if (!item) return null;
+  if (item[snakeCaseField] != null && item[snakeCaseField] !== "") {
+    return item[snakeCaseField];
+  }
+  if (item[camelCaseField] != null && item[camelCaseField] !== "") {
+    return item[camelCaseField];
+  }
+  return null;
+}
+
+function buildHoldedV2Variant_(variant, row, legacyVariants, priceOverrides) {
   const isTarget =
-    safeStr_(variant.id) === row.productId ||
-    normalizeKey_(variant.sku) === normalizeKey_(row.sku);
+    row && (
+      safeStr_(variant.id) === row.productId ||
+      normalizeKey_(variant.sku) === normalizeKey_(row.sku)
+    );
   const legacyVariant = findHoldedVariant_(
     legacyVariants,
     variant.id,
     variant.sku
   );
 
-  if (!isTarget && !legacyVariant) {
+  if (!legacyVariant) {
     throw new Error(
-      `No puedo conservar de forma segura el coste de la variante ${variant.sku || variant.id}.`
+      `No puedo conservar de forma segura los datos de la variante ${variant.sku || variant.id}.`
     );
   }
 
@@ -406,14 +427,23 @@ function buildHoldedV2Variant_(variant, row, legacyVariants) {
   const preservedCost = isTarget
     ? row.calculatedCost
     : legacyVariant.cost;
+  const skuKey = normalizeKey_(variant.sku || legacyVariant.sku);
+  const preservedPrice = priceOverrides && priceOverrides[skuKey] != null
+    ? priceOverrides[skuKey]
+    : getHoldedEconomicValue_(legacyVariant, "price", "price");
+  const preservedPurchasePrice = getHoldedEconomicValue_(
+    legacyVariant,
+    "purchase_price",
+    "purchasePrice"
+  );
 
   const result = {
     id: safeStr_(variant.id),
     sku: variant.sku == null ? null : String(variant.sku),
     barcode: variant.barcode == null ? null : String(variant.barcode),
-    price: holdedV2Decimal_(variant.price),
+    price: holdedV2Decimal_(preservedPrice),
     cost: holdedV2Decimal_(preservedCost),
-    purchase_price: holdedV2Decimal_(variant.purchase_price),
+    purchase_price: holdedV2Decimal_(preservedPurchasePrice),
     stock: variant.stock == null ? null : Number(variant.stock),
     description: variant.description == null ? null : String(variant.description),
     weight: variant.weight == null ? null : Number(variant.weight),
@@ -428,15 +458,32 @@ function buildHoldedV2Variant_(variant, row, legacyVariants) {
   return { result, isTarget };
 }
 
-function buildHoldedV2ProductPayload_(product, row, legacyProduct) {
+function buildHoldedV2ProductPayload_(product, row, legacyProduct, priceOverrides) {
+  if (!legacyProduct) {
+    throw new Error("No puedo conservar de forma segura los datos económicos del producto.");
+  }
+
+  const productSkuKey = normalizeKey_(product.sku || legacyProduct.sku);
+  const preservedPrice = priceOverrides && priceOverrides[productSkuKey] != null
+    ? priceOverrides[productSkuKey]
+    : getHoldedEconomicValue_(legacyProduct, "price", "price");
+  const preservedPurchasePrice = getHoldedEconomicValue_(
+    legacyProduct,
+    "purchase_price",
+    "purchasePrice"
+  );
+  const preservedCost = row && !row.parentId
+    ? row.calculatedCost
+    : legacyProduct.cost;
+
   const payload = {
     name: String(product.name || ""),
     description: product.description == null ? null : String(product.description),
     sku: product.sku == null ? null : String(product.sku),
     barcode: product.barcode == null ? null : String(product.barcode),
-    price: holdedV2Decimal_(product.price),
-    cost: row.parentId ? holdedV2Decimal_(product.cost) : holdedV2Decimal_(row.calculatedCost),
-    purchase_price: holdedV2Decimal_(product.purchase_price),
+    price: holdedV2Decimal_(preservedPrice),
+    cost: holdedV2Decimal_(preservedCost),
+    purchase_price: holdedV2Decimal_(preservedPurchasePrice),
     tags: Array.isArray(product.tags) ? product.tags : null,
     taxes: Array.isArray(product.taxes) ? product.taxes : null,
     for_sale: Boolean(product.for_sale),
@@ -448,9 +495,9 @@ function buildHoldedV2ProductPayload_(product, row, legacyProduct) {
     const legacyVariants = legacyProduct && Array.isArray(legacyProduct.variants)
       ? legacyProduct.variants
       : [];
-    let targetFound = !row.parentId;
+    let targetFound = !row || !row.parentId;
     payload.variants = product.variants.map(variant => {
-      const mapped = buildHoldedV2Variant_(variant, row, legacyVariants);
+      const mapped = buildHoldedV2Variant_(variant, row, legacyVariants, priceOverrides);
       if (mapped.isTarget) targetFound = true;
       return mapped.result;
     });
@@ -470,9 +517,10 @@ function updateHoldedManufacturingCost_(row) {
   const productId = row.parentId || row.productId;
   const path = `/products/${encodeURIComponent(productId)}`;
   const product = holdedV2Request_("get", path);
-  const legacyProduct = row.parentId
-    ? holdedRequest_("get", `/products/${encodeURIComponent(productId)}`)
-    : null;
+  const legacyProduct = holdedRequest_(
+    "get",
+    `/products/${encodeURIComponent(productId)}`
+  );
   const payload = buildHoldedV2ProductPayload_(product, row, legacyProduct);
 
   holdedV2Request_("put", path, payload);
@@ -520,6 +568,152 @@ function verifyHoldedManufacturingCost_(row) {
 
 function updateHoldedRawCost_(raw, row, verifiedCost) {
   raw.sheet.getRange(row.rawRow, raw.costColumn).setValue(verifiedCost);
+}
+
+function verifyHoldedPrice_(productId, variantId, sku, expectedPrice) {
+  let remotePrice = null;
+
+  for (let attempt = 1; attempt <= MANUFACTURING_COSTS.verifyAttempts; attempt++) {
+    const remote = holdedRequest_(
+      "get",
+      `/products/${encodeURIComponent(productId)}`
+    );
+
+    if (variantId) {
+      const variants = Array.isArray(remote.variants) ? remote.variants : [];
+      const variant = findHoldedVariant_(variants, variantId, sku);
+      remotePrice = variant ? normalizeHoldedCost_(variant.price) : null;
+    } else {
+      remotePrice = normalizeHoldedCost_(remote.price);
+    }
+
+    if (
+      remotePrice != null &&
+      Math.abs(remotePrice - expectedPrice) < MANUFACTURING_COSTS.verifyTolerance
+    ) {
+      return remotePrice;
+    }
+
+    if (attempt < MANUFACTURING_COSTS.verifyAttempts) {
+      Utilities.sleep(MANUFACTURING_COSTS.verifyPauseMs);
+    }
+  }
+
+  const received = remotePrice == null ? "sin precio" : remotePrice;
+  throw new Error(
+    `Holded devuelve ${received} para ${sku}, en vez de ${expectedPrice}.`
+  );
+}
+
+function repairHoldedPricesFromBackup() {
+  const ss = getHoldedSpreadsheet_();
+  const current = readHoldedRawForCosts_(ss, MANUFACTURING_COSTS.rawSheet);
+  const backup = readHoldedRawForCosts_(ss, MANUFACTURING_COSTS.priceBackupSheet);
+  const repairs = [];
+
+  Object.keys(backup.products).forEach(key => {
+    const before = backup.products[key];
+    const now = current.products[key];
+    if (!now || before.currentPrice == null || before.currentPrice <= 0) return;
+
+    const lostPrice = now.currentPrice == null || now.currentPrice === 0;
+    if (!lostPrice) return;
+
+    repairs.push({
+      sku: now.sku,
+      productId: now.productId,
+      parentId: now.parentId,
+      rawRow: now.rawRow,
+      price: before.currentPrice
+    });
+  });
+
+  if (!repairs.length) {
+    SpreadsheetApp.getUi().alert("No hay precios perdidos que reparar.");
+    return;
+  }
+
+  const ui = SpreadsheetApp.getUi();
+  const confirmation = ui.alert(
+    "Reparar precios de Holded",
+    `Se restaurarán ${repairs.length} precios desde '${MANUFACTURING_COSTS.priceBackupSheet}'. ¿Quieres continuar?`,
+    ui.ButtonSet.YES_NO
+  );
+  if (confirmation !== ui.Button.YES) return;
+
+  const simpleRepairs = repairs.filter(item => !item.parentId);
+  const variantGroups = {};
+  repairs.filter(item => item.parentId).forEach(item => {
+    if (!variantGroups[item.parentId]) variantGroups[item.parentId] = [];
+    variantGroups[item.parentId].push(item);
+  });
+
+  let okCount = 0;
+  const errors = [];
+
+  simpleRepairs.forEach(item => {
+    try {
+      const path = `/products/${encodeURIComponent(item.productId)}`;
+      const product = holdedV2Request_("get", path);
+      const legacyProduct = holdedRequest_("get", path);
+      const priceOverrides = {};
+      priceOverrides[normalizeKey_(item.sku)] = item.price;
+      const payload = buildHoldedV2ProductPayload_(
+        product,
+        null,
+        legacyProduct,
+        priceOverrides
+      );
+      holdedV2Request_("put", path, payload);
+      Utilities.sleep(MANUFACTURING_COSTS.apiPauseMs);
+      const verified = verifyHoldedPrice_(item.productId, "", item.sku, item.price);
+      current.sheet.getRange(item.rawRow, current.priceColumn).setValue(verified);
+      okCount++;
+    } catch (error) {
+      errors.push(`${item.sku}: ${error && error.message ? error.message : error}`);
+    }
+  });
+
+  Object.keys(variantGroups).forEach(parentId => {
+    const group = variantGroups[parentId];
+    try {
+      const path = `/products/${encodeURIComponent(parentId)}`;
+      const product = holdedV2Request_("get", path);
+      const legacyProduct = holdedRequest_("get", path);
+      const priceOverrides = {};
+      group.forEach(item => {
+        priceOverrides[normalizeKey_(item.sku)] = item.price;
+      });
+
+      const payload = buildHoldedV2ProductPayload_(
+        product,
+        null,
+        legacyProduct,
+        priceOverrides
+      );
+      holdedV2Request_("put", path, payload);
+      Utilities.sleep(MANUFACTURING_COSTS.apiPauseMs);
+
+      group.forEach(item => {
+        const verified = verifyHoldedPrice_(parentId, item.productId, item.sku, item.price);
+        current.sheet.getRange(item.rawRow, current.priceColumn).setValue(verified);
+        okCount++;
+      });
+    } catch (error) {
+      const detail = error && error.message ? error.message : String(error);
+      group.forEach(item => errors.push(`${item.sku}: ${detail}`));
+    }
+  });
+
+  if (errors.length) {
+    console.error(errors.join("\n"));
+    ui.alert(
+      `⚠️ Precios reparados: ${okCount} | errores: ${errors.length}. Revisa el registro de ejecución.`
+    );
+    throw new Error(`Reparación incompleta: ${errors.length} error(es).`);
+  }
+
+  ui.alert(`✅ Precios restaurados en Holded y Holded Raw: ${okCount}.`);
 }
 
 function writeManufacturingCostLog_(ss, rows) {

@@ -36,12 +36,14 @@ El cálculo utiliza las fabricaciones de los últimos 60 días, pondera por unid
 
 ## F-004 - Publicación de costes de fabricación en Holded
 
-**Estado:** implementada con API v2; requiere validación inicial controlada con una variante
+**Estado:** implementada con API v2
 
 La opción **Rotoformas → Holded → Aplicar costes seleccionados** procesa únicamente las filas marcadas en `Holded Costes Preview` y exige una segunda confirmación.
 
 Antes de cada escritura se recalcula el histórico para detectar vistas previas obsoletas. Después de actualizar Holded se vuelve a leer el producto o variante y se comprueba el coste. Solo cuando la verificación coincide se actualiza `Holded Raw`. Todos los intentos quedan registrados en `Holded Costes Log`.
 
-La publicación utiliza la API v2 con los permisos `inventory:products.read` e `inventory:products.write`. Para una variante se lee primero el producto padre completo, se conserva su configuración y la lista íntegra de variantes, y se modifica únicamente el coste de la seleccionada. Como la lectura v2 devuelve vacío el campo de coste, los costes de las variantes hermanas se preservan y la escritura se verifica mediante la lectura v1. Este flujo sustituye al intento de escritura mediante API v1, que Holded rechaza con `Cannot update product variants`.
+La publicación utiliza la API v2 con los permisos `inventory:products.read` e `inventory:products.write`. Antes de escribir se leen los datos económicos mediante API v1, porque la lectura v2 puede devolver vacíos campos como coste, precio de venta y precio de compra. Para una variante se conserva la configuración completa del producto padre y la lista íntegra de variantes, y se modifica únicamente el coste de la seleccionada. El coste escrito se verifica mediante una nueva lectura v1. Este flujo sustituye al intento de escritura mediante API v1, que Holded rechaza con `Cannot update product variants`.
+
+Como medida de seguridad, la publicación nunca toma de la lectura v2 los campos `price`, `cost` o `purchase_price`: los preserva desde v1 para impedir que una actualización de coste borre precios existentes.
 
 Las materias primas no se actualizan mediante este proceso; sus costes continúan procediendo de Holded a través de F-002.
