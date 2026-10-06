@@ -314,6 +314,7 @@ const filasCalc = pares.map(p => {
   const fechaStr = objetivoStr;
   const turnoStr = turnoObjetivo || "";
   writeHistoricoConCalculos_(ss, filasCalc, fechaStr, turnoStr, totalGas, totalLuz, totalMOD, kgTotalTurno);
+  syncManufacturingOrdersForShift_(ss, filasCalc, fechaStr, turnoStr);
 }
 
 /** ============ LECTURA MAESTRA ============ **/

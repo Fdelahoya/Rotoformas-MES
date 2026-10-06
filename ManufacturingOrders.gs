@@ -123,13 +123,98 @@ function ensureManufacturingOrderSheets_(ss) {
   if (!production) production = ss.insertSheet(MANUFACTURING_ORDERS.productionSheet);
   const productionHeaders = [
     "Fecha", "Turno", "Nº OF", "SKU", "Uds", "Peso real",
-    "Lote PE", "Lote pigmento", "Lote producto terminado"
+    "Lote PE", "Lote pigmento", "Lote producto terminado",
+    "Clave origen", "Vinculada"
   ];
   if (production.getLastRow() === 0) {
     production.getRange(1, 1, 1, productionHeaders.length).setValues([productionHeaders]).setFontWeight("bold");
     production.setFrozenRows(1);
+  } else if (production.getLastColumn() < productionHeaders.length) {
+    production.getRange(1, 1, 1, productionHeaders.length).setValues([productionHeaders]).setFontWeight("bold");
   }
   return { orders, production };
+}
+
+function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftText) {
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const shift = safeStr_(shiftText);
+  const sourcePrefix = `RESUMEN|${safeStr_(dateText)}|${shift}|`;
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(15000);
+  try {
+    const previousLinks = removeManufacturingOrderLinksBySource_(sheets.production, sourcePrefix);
+
+    const allOrders = readManufacturingOrders_(sheets.orders, sheets.production)
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const orders = allOrders.filter(order => order.status === MANUFACTURING_ORDERS.openStatus);
+    const ordersById = {};
+    allOrders.forEach(order => { ordersById[order.id] = order; });
+    const ordersBySku = {};
+    orders.forEach(order => {
+      const key = normalizeKey_(order.sku);
+      if (!ordersBySku[key]) ordersBySku[key] = [];
+      ordersBySku[key].push(order);
+    });
+
+    const date = parseManufacturingOrderLocalDate_(dateText);
+    const now = new Date();
+    const rowsToAppend = [];
+    (productionRows || []).forEach(item => {
+      const sku = safeStr_(item.producto || item.sku);
+      const units = numberOrZero_(item.uds || item.units);
+      if (!sku || units <= 0) return;
+      const candidates = ordersBySku[normalizeKey_(sku)] || [];
+      const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
+      const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
+      if (!order) return;
+      rowsToAppend.push([
+        date,
+        shift,
+        order.id,
+        sku,
+        units,
+        numberOrZero_(item.kgTotal || item.realWeight),
+        "",
+        "",
+        "",
+        sourcePrefix + normalizeKey_(sku),
+        now
+      ]);
+      order.producedQuantity += units;
+      order.pendingQuantity = Math.max(0, order.targetQuantity - order.producedQuantity);
+    });
+
+    if (rowsToAppend.length) {
+      sheets.production.getRange(
+        sheets.production.getLastRow() + 1,
+        1,
+        rowsToAppend.length,
+        rowsToAppend[0].length
+      ).setValues(rowsToAppend);
+    }
+    return { linked: rowsToAppend.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function removeManufacturingOrderLinksBySource_(sheet, sourcePrefix) {
+  const values = sheet.getDataRange().getValues();
+  const previousLinks = {};
+  for (let row = values.length - 1; row >= 1; row--) {
+    if (safeStr_(values[row][9]).startsWith(sourcePrefix)) {
+      previousLinks[normalizeKey_(values[row][3])] = safeStr_(values[row][2]);
+      sheet.deleteRow(row + 1);
+    }
+  }
+  return previousLinks;
+}
+
+function parseManufacturingOrderLocalDate_(value) {
+  const match = safeStr_(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const parsed = value instanceof Date ? value : new Date(value);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
 function readManufacturingOrders_(ordersSheet, productionSheet) {

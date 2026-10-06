@@ -72,8 +72,12 @@ La Web App **Rotoformas MES** incorpora el módulo **Órdenes de fabricación**,
 
 Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU, producto, cantidad objetivo, color, fecha objetivo, estado y observaciones. El catálogo seleccionable procede de los productos terminados activos de `Holded Raw`.
 
-Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda queda preparada para enlazar fabricaciones en una fase posterior; en esta versión no se asocian automáticamente registros de producción.
+Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda registra las fabricaciones asociadas automáticamente desde el resumen diario.
 
-### Alcance de V1
+### Asociación con las fabricaciones
 
-Esta versión es exclusivamente de planificación. No modifica el flujo actual de producción, no genera movimientos de stock y no cambia `applyStockMovements()`. La asignación automática de fabricaciones por SKU y OF abierta se abordará en una iteración posterior.
+Al ejecutar **Generar resumen del día**, cada SKU fabricado se vincula automáticamente con la OF abierta más antigua del mismo SKU que todavía tenga unidades pendientes. El vínculo se guarda en `Fabricaciones OF` y actualiza las cantidades fabricada y pendiente y el porcentaje de avance mostrado en la Web App.
+
+La sincronización es idempotente por fecha y turno: volver a generar el mismo resumen reemplaza sus vínculos anteriores y no duplica unidades.
+
+Esta funcionalidad no genera movimientos de stock y no cambia `applyStockMovements()`.
