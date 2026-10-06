@@ -57,3 +57,23 @@ La aplicación web **Lotes activos** está desplegada desde el mismo proyecto de
 El panel consulta en Holded los lotes reales de `PE NATURAL`, `PE MASA`, `PE RECICLADO`, `PIG300`, `PIG301` e `INSERTO V4`. Permite seleccionar un lote por su lista, identificador, nombre o código de barras y registra la selección en las hojas `Lotes activos` y `Cambios de lote`.
 
 Esta primera fase no envía movimientos de stock y no modifica `applyStockMovements()`. La integración del lote activo con los consumos del MES se realizará después de validar el uso operativo del panel.
+
+## F-006 - Órdenes de fabricación V1 (F-002 del módulo de planificación)
+
+**Estado:** implementada y publicada
+
+La Web App **Rotoformas MES** incorpora el módulo **Órdenes de fabricación**, manteniendo la misma interfaz del panel de lotes activos. Permite:
+
+- consultar órdenes abiertas, cerradas o todas;
+- buscar por número de OF, cliente o SKU;
+- crear, consultar y editar órdenes;
+- cerrar o reabrir una orden;
+- visualizar cantidad objetivo, cantidad fabricada, pendiente y porcentaje de avance.
+
+Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU, producto, cantidad objetivo, color, fecha objetivo, estado y observaciones. El catálogo seleccionable procede de los productos terminados activos de `Holded Raw`.
+
+Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda queda preparada para enlazar fabricaciones en una fase posterior; en esta versión no se asocian automáticamente registros de producción.
+
+### Alcance de V1
+
+Esta versión es exclusivamente de planificación. No modifica el flujo actual de producción, no genera movimientos de stock y no cambia `applyStockMovements()`. La asignación automática de fabricaciones por SKU y OF abierta se abordará en una iteración posterior.

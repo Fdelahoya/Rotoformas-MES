@@ -1,154 +1,36 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top"><meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root { --navy:#102a43; --blue:#2563eb; --pale:#eff6ff; --line:#dbe4ee; --muted:#62748a; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; }
-    * { box-sizing:border-box; }
-    body { margin:0; background:#f5f7fa; color:#17212b; font:15px/1.45 Arial,sans-serif; }
-    header { background:linear-gradient(120deg,var(--navy),#164e63); color:white; padding:24px clamp(18px,4vw,48px); }
-    header h1 { margin:0 0 4px; font-size:clamp(24px,4vw,36px); }
-    header p { margin:0; opacity:.82; }
-    main { max-width:1200px; margin:auto; padding:24px clamp(14px,3vw,32px) 48px; }
-    .toolbar { display:flex; gap:12px; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
-    button, select, input { font:inherit; }
-    button { border:0; border-radius:9px; padding:10px 15px; cursor:pointer; font-weight:700; }
-    button.primary { background:var(--blue); color:white; }
-    button.secondary { background:white; color:var(--navy); border:1px solid var(--line); }
-    button:disabled { opacity:.55; cursor:wait; }
-    .timestamp { color:var(--muted); font-size:13px; }
-    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
-    .card { background:white; border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 4px 14px rgba(16,42,67,.06); }
-    .card-top { display:flex; justify-content:space-between; gap:10px; align-items:start; }
-    .card h2 { font-size:18px; margin:0; color:var(--navy); }
-    .product { color:var(--muted); min-height:22px; margin:2px 0 15px; }
-    .badge { border-radius:999px; padding:4px 9px; font-size:11px; font-weight:800; white-space:nowrap; background:#fef3c7; color:var(--warn); }
-    .badge.ok { background:#dcfce7; color:var(--ok); }
-    .badge.bad { background:#fee2e2; color:var(--bad); }
-    .lot { font-size:22px; font-weight:800; margin:5px 0; }
-    .stock { color:var(--ok); font-size:18px; font-weight:700; }
-    .meta { color:var(--muted); font-size:12px; margin:10px 0 16px; min-height:36px; }
-    .empty { color:var(--warn); margin:10px 0 20px; }
-    section.history { margin-top:28px; background:white; border:1px solid var(--line); border-radius:14px; padding:18px; overflow:auto; }
-    table { width:100%; border-collapse:collapse; min-width:700px; }
-    th,td { text-align:left; padding:10px; border-bottom:1px solid var(--line); }
-    th { color:var(--muted); font-size:12px; text-transform:uppercase; }
-    dialog { width:min(520px,calc(100% - 24px)); border:0; border-radius:16px; padding:0; box-shadow:0 20px 70px rgba(0,0,0,.28); }
-    dialog::backdrop { background:rgba(15,23,42,.55); }
-    .dialog-body { padding:22px; }
-    .dialog-body h2 { margin-top:0; }
-    label { display:block; font-weight:700; margin:14px 0 6px; }
-    select,input { width:100%; padding:11px; border:1px solid #b9c7d5; border-radius:8px; background:white; }
-    .hint { color:var(--muted); font-size:13px; }
-    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
-    .notice { display:none; margin-bottom:16px; padding:12px 15px; border-radius:9px; background:#dcfce7; color:#166534; }
-    .notice.error { background:#fee2e2; color:#991b1b; }
-    .loading { padding:40px; text-align:center; color:var(--muted); }
+    :root{--navy:#102a43;--blue:#2563eb;--line:#dbe4ee;--muted:#62748a;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}*{box-sizing:border-box}body{margin:0;background:#f5f7fa;color:#17212b;font:15px/1.45 Arial,sans-serif}header{background:linear-gradient(120deg,var(--navy),#164e63);color:white;padding:20px clamp(18px,4vw,48px) 0}header h1{margin:0 0 2px;font-size:clamp(24px,4vw,34px)}header p{margin:0 0 18px;opacity:.82}nav{display:flex;gap:4px;overflow:auto}nav button{color:#ffffffbf;background:transparent;border-radius:8px 8px 0 0;padding:11px 15px}nav button.active{color:var(--navy);background:#f5f7fa}main{max-width:1200px;margin:auto;padding:24px clamp(14px,3vw,32px) 48px}.view[hidden]{display:none}.toolbar{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap}.toolbar-group{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button,select,input,textarea{font:inherit}button{border:0;border-radius:9px;padding:10px 15px;cursor:pointer;font-weight:700}button.primary{background:var(--blue);color:white}button.secondary{background:white;color:var(--navy);border:1px solid var(--line)}button:disabled{opacity:.55;cursor:wait}.timestamp,.hint{color:var(--muted);font-size:13px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card,.panel,.order-card{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 4px 14px #102a430f}.card-top,.order-top{display:flex;justify-content:space-between;gap:10px;align-items:start}.card h2,.order-card h2{font-size:18px;margin:0;color:var(--navy)}.product{color:var(--muted);min-height:22px;margin:2px 0 15px}.badge{border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap;background:#fef3c7;color:var(--warn)}.badge.ok{background:#dcfce7;color:var(--ok)}.badge.bad{background:#fee2e2;color:var(--bad)}.badge.closed{background:#e2e8f0;color:#475569}.lot{font-size:22px;font-weight:800;margin:5px 0}.stock{color:var(--ok);font-size:18px;font-weight:700}.meta{color:var(--muted);font-size:12px;margin:10px 0 16px;min-height:36px}.empty{color:var(--warn);margin:10px 0 20px}section.history{margin-top:28px;background:white;border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto}table{width:100%;border-collapse:collapse;min-width:700px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:12px;text-transform:uppercase}dialog{width:min(620px,calc(100% - 24px));border:0;border-radius:16px;padding:0;box-shadow:0 20px 70px #00000047}dialog.wide{width:min(900px,calc(100% - 24px))}dialog::backdrop{background:#0f172a8c}.dialog-body{padding:22px;max-height:88vh;overflow:auto}.dialog-body h2{margin-top:0}label{display:block;font-weight:700;margin:12px 0 6px}select,input,textarea{width:100%;padding:11px;border:1px solid #b9c7d5;border-radius:8px;background:white}textarea{min-height:86px;resize:vertical}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.span-2{grid-column:1/-1}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.notice{display:none;margin-bottom:16px;padding:12px 15px;border-radius:9px;background:#dcfce7;color:#166534}.notice.error{background:#fee2e2;color:#991b1b}.loading{padding:40px;text-align:center;color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(3,minmax(100px,1fr));gap:10px;margin-bottom:18px}.metric{background:white;border:1px solid var(--line);border-radius:12px;padding:14px}.metric strong{display:block;font-size:24px;color:var(--navy)}.metric span{color:var(--muted);font-size:12px;text-transform:uppercase}.orders{display:grid;gap:12px}.order-card{display:grid;grid-template-columns:minmax(210px,1.3fr) minmax(180px,1fr) auto;gap:18px;align-items:center}.order-id{color:var(--blue);font-weight:800;margin-bottom:3px}.order-product{font-weight:700;font-size:17px}.progress{height:9px;border-radius:999px;background:#e5eaf0;overflow:hidden;margin:8px 0 5px}.progress span{display:block;height:100%;background:var(--blue)}.order-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.search{min-width:230px}.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.detail-item{background:#f8fafc;border-radius:9px;padding:11px}.detail-item span{display:block;color:var(--muted);font-size:12px}.detail-item strong{display:block;margin-top:2px}@media(max-width:720px){.form-grid,.detail-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.order-card{grid-template-columns:1fr}.order-actions{justify-content:flex-start}}
   </style>
 </head>
 <body>
-  <header><h1>Lotes activos</h1><p>Rotoformas MES · Materias primas en producción</p></header>
-  <main>
-    <div id="notice" class="notice"></div>
-    <div class="toolbar">
-      <div id="timestamp" class="timestamp">Cargando datos de Holded…</div>
-      <button id="refresh" class="secondary" onclick="loadDashboard()">Actualizar</button>
-    </div>
-    <div id="cards" class="cards"><div class="loading">Consultando productos y lotes…</div></div>
-    <section class="history">
-      <h2>Últimos cambios</h2>
-      <div id="history" class="hint">Todavía no hay cambios registrados.</div>
-    </section>
+  <header><h1>Rotoformas MES</h1><p>Producción y trazabilidad</p><nav><button id="navLots" class="active" onclick="showView('lots')">Lotes activos</button><button id="navOrders" onclick="showView('orders')">Órdenes de fabricación</button></nav></header>
+  <main><div id="notice" class="notice"></div>
+    <section id="lotsView" class="view"><div class="toolbar"><div id="timestamp" class="timestamp">Cargando datos de Holded…</div><button id="refresh" class="secondary" onclick="loadLots()">Actualizar</button></div><div id="cards" class="cards"><div class="loading">Consultando productos y lotes…</div></div><section class="history"><h2>Últimos cambios</h2><div id="history" class="hint">Todavía no hay cambios registrados.</div></section></section>
+    <section id="ordersView" class="view" hidden><div class="toolbar"><div><h2 style="margin:0">Órdenes de fabricación</h2><div id="ordersTimestamp" class="timestamp">Planificación maestra del MES</div></div><button class="primary" onclick="openOrderForm()">+ Nueva OF</button></div><div id="orderSummary" class="summary"></div><div class="toolbar"><div class="toolbar-group"><input id="orderSearch" class="search" placeholder="Buscar OF, cliente o SKU" oninput="renderOrders()"><select id="orderStatus" onchange="renderOrders()"><option value="ABIERTA">Abiertas</option><option value="CERRADA">Cerradas</option><option value="TODAS">Todas</option></select></div><button class="secondary" onclick="loadOrders()">Actualizar</button></div><div id="ordersList" class="orders"><div class="loading">Cargando órdenes…</div></div></section>
   </main>
-
-  <dialog id="lotDialog">
-    <div class="dialog-body">
-      <h2 id="dialogTitle">Cambiar lote activo</h2>
-      <p class="hint">Escanea el código con la pistola lectora o selecciona un lote disponible.</p>
-      <label for="scan">Código escaneado</label>
-      <input id="scan" autocomplete="off" placeholder="Código de barras o nombre del lote">
-      <label for="lotSelect">Lotes de Holded</label>
-      <select id="lotSelect"><option value="">Selecciona un lote…</option></select>
-      <div class="actions">
-        <button class="secondary" onclick="closeDialog()">Cancelar</button>
-        <button id="activate" class="primary" onclick="activateLot()">Activar lote</button>
-      </div>
-    </div>
-  </dialog>
-
+  <dialog id="lotDialog"><div class="dialog-body"><h2 id="dialogTitle">Cambiar lote activo</h2><p class="hint">Escanea el código con la pistola lectora o selecciona un lote disponible.</p><label for="scan">Código escaneado</label><input id="scan" autocomplete="off" placeholder="Código de barras o nombre del lote"><label for="lotSelect">Lotes de Holded</label><select id="lotSelect"><option value="">Selecciona un lote…</option></select><div class="actions"><button class="secondary" onclick="closeDialog('lotDialog')">Cancelar</button><button id="activate" class="primary" onclick="activateLot()">Activar lote</button></div></div></dialog>
+  <dialog id="orderFormDialog"><div class="dialog-body"><h2 id="orderFormTitle">Nueva orden de fabricación</h2><form id="orderForm" onsubmit="saveOrder(event)"><input id="ofId" type="hidden"><div class="form-grid"><div><label for="ofClient">Cliente *</label><input id="ofClient" required></div><div><label for="ofSku">SKU *</label><select id="ofSku" required onchange="syncOrderProduct()"><option value="">Selecciona un producto…</option></select></div><div class="span-2"><label for="ofProduct">Producto *</label><input id="ofProduct" required readonly></div><div><label for="ofQuantity">Cantidad objetivo *</label><input id="ofQuantity" type="number" min="0.01" step="0.01" required></div><div><label for="ofColor">Color</label><input id="ofColor"></div><div><label for="ofTargetDate">Fecha objetivo</label><input id="ofTargetDate" type="date"></div><div><label for="ofStatus">Estado</label><select id="ofStatus"><option value="ABIERTA">ABIERTA</option><option value="CERRADA">CERRADA</option></select></div><div class="span-2"><label for="ofNotes">Observaciones</label><textarea id="ofNotes"></textarea></div></div><div class="actions"><button type="button" class="secondary" onclick="closeDialog('orderFormDialog')">Cancelar</button><button id="saveOrderButton" type="submit" class="primary">Guardar OF</button></div></form></div></dialog>
+  <dialog id="orderDetailDialog" class="wide"><div class="dialog-body"><div id="orderDetail"></div><div class="actions"><button class="secondary" onclick="closeDialog('orderDetailDialog')">Cerrar</button></div></div></dialog>
   <script>
-    let dashboard = null;
-    let selectedSku = "";
-
-    function escapeHtml(value) {
-      return String(value == null ? "" : value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-    }
-    function formatStock(value) {
-      return new Intl.NumberFormat('es-ES', {maximumFractionDigits:3}).format(Number(value || 0));
-    }
-    function showNotice(message, error) {
-      const node = document.getElementById('notice');
-      node.textContent = message;
-      node.className = 'notice' + (error ? ' error' : '');
-      node.style.display = 'block';
-      window.scrollTo({top:0, behavior:'smooth'});
-    }
-    function loadDashboard() {
-      const button = document.getElementById('refresh');
-      button.disabled = true;
-      google.script.run
-        .withSuccessHandler(data => { dashboard = data; render(); button.disabled = false; })
-        .withFailureHandler(error => { showNotice(error.message || String(error), true); button.disabled = false; })
-        .getLotsDashboardData();
-    }
-    function render() {
-      document.getElementById('timestamp').textContent = 'Actualizado: ' + dashboard.generatedAt;
-      document.getElementById('cards').innerHTML = dashboard.materials.map(material => {
-        const active = material.active;
-        const badgeClass = !material.found || (active && !active.valid) ? 'bad' : active ? 'ok' : '';
-        const badgeText = !material.found ? 'NO ENCONTRADO' : active && !active.valid ? 'LOTE NO VÁLIDO' : active ? 'ACTIVO' : 'SIN CONFIGURAR';
-        return `<article class="card">
-          <div class="card-top"><h2>${escapeHtml(material.sku)}</h2><span class="badge ${badgeClass}">${badgeText}</span></div>
-          <div class="product">${escapeHtml(material.productName || 'No localizado en Holded')}</div>
-          ${active ? `<div class="lot">${escapeHtml(active.lotName)}</div><div class="stock">${formatStock(active.stock)} ${material.sku === 'INSERTO V4' ? 'uds' : 'kg'}</div><div class="meta">Código: ${escapeHtml(active.barcode || '—')}<br>Cambio: ${escapeHtml(active.changedAt)} · ${escapeHtml(active.changedBy)}</div>` : `<div class="empty">No hay ningún lote activo seleccionado.</div>`}
-          <button class="primary" ${material.found && material.lots.length ? '' : 'disabled'} onclick="openDialog('${escapeHtml(material.sku)}')">Cambiar lote</button>
-        </article>`;
-      }).join('');
-      const history = dashboard.history;
-      document.getElementById('history').innerHTML = history.length ? `<table><thead><tr><th>Fecha</th><th>Materia prima</th><th>Lote anterior</th><th>Lote nuevo</th><th>Stock</th><th>Operario</th></tr></thead><tbody>${history.map(item => `<tr><td>${escapeHtml(item.changedAt)}</td><td>${escapeHtml(item.sku)}</td><td>${escapeHtml(item.previousLot || '—')}</td><td>${escapeHtml(item.newLot)}</td><td>${formatStock(item.stock)}</td><td>${escapeHtml(item.changedBy)}</td></tr>`).join('')}</tbody></table>` : 'Todavía no hay cambios registrados.';
-    }
-    function openDialog(sku) {
-      selectedSku = sku;
-      const material = dashboard.materials.find(item => item.sku === sku);
-      document.getElementById('dialogTitle').textContent = 'Cambiar lote · ' + sku;
-      document.getElementById('scan').value = '';
-      document.getElementById('lotSelect').innerHTML = '<option value="">Selecciona un lote…</option>' + material.lots.map(lot => `<option value="${escapeHtml(lot.id)}">${escapeHtml(lot.name)} · ${formatStock(lot.stock)} ${sku === 'INSERTO V4' ? 'uds' : 'kg'}${lot.barcode ? ' · ' + escapeHtml(lot.barcode) : ''}</option>`).join('');
-      document.getElementById('lotDialog').showModal();
-      setTimeout(() => document.getElementById('scan').focus(), 100);
-    }
-    function closeDialog() { document.getElementById('lotDialog').close(); }
-    function activateLot() {
-      const scan = document.getElementById('scan').value.trim();
-      const selected = document.getElementById('lotSelect').value;
-      const reference = scan || selected;
-      if (!reference) return showNotice('Escanea o selecciona un lote.', true);
-      const button = document.getElementById('activate');
-      button.disabled = true;
-      google.script.run
-        .withSuccessHandler(result => {
-          closeDialog();
-          showNotice(`${result.sku}: lote ${result.lotName} activado correctamente.`, false);
-          button.disabled = false;
-          loadDashboard();
-        })
-        .withFailureHandler(error => { showNotice(error.message || String(error), true); button.disabled = false; })
-        .activateProductionLot(selectedSku, reference);
-    }
-    document.getElementById('scan').addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); activateLot(); }
-    });
-    loadDashboard();
+    let dashboard=null,ordersData=null,selectedSku='';
+    const el=id=>document.getElementById(id); const esc=value=>String(value==null?'':value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); const num=value=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:2}).format(Number(value||0));
+    function notice(message,error){el('notice').textContent=message;el('notice').className='notice'+(error?' error':'');el('notice').style.display='block';window.scrollTo({top:0,behavior:'smooth'})} function clearNotice(){el('notice').style.display='none'} function closeDialog(id){el(id).close()}
+    function showView(view){const lots=view==='lots';el('lotsView').hidden=!lots;el('ordersView').hidden=lots;el('navLots').classList.toggle('active',lots);el('navOrders').classList.toggle('active',!lots);clearNotice();if(!lots&&!ordersData)loadOrders()}
+    function loadLots(){el('refresh').disabled=true;google.script.run.withSuccessHandler(data=>{dashboard=data;renderLots();el('refresh').disabled=false}).withFailureHandler(e=>{notice(e.message||String(e),true);el('refresh').disabled=false}).getLotsDashboardData()}
+    function renderLots(){el('timestamp').textContent='Actualizado: '+dashboard.generatedAt;el('cards').innerHTML=dashboard.materials.map(m=>{const a=m.active,bc=!m.found||(a&&!a.valid)?'bad':a?'ok':'',bt=!m.found?'NO ENCONTRADO':a&&!a.valid?'LOTE NO VÁLIDO':a?'ACTIVO':'SIN CONFIGURAR';return `<article class="card"><div class="card-top"><h2>${esc(m.sku)}</h2><span class="badge ${bc}">${bt}</span></div><div class="product">${esc(m.productName||'No localizado en Holded')}</div>${a?`<div class="lot">${esc(a.lotName)}</div><div class="stock">${num(a.stock)} ${m.sku==='INSERTO V4'?'uds':'kg'}</div><div class="meta">Código: ${esc(a.barcode||'—')}<br>Cambio: ${esc(a.changedAt)} · ${esc(a.changedBy)}</div>`:'<div class="empty">No hay ningún lote activo seleccionado.</div>'}<button class="primary" ${m.found&&m.lots.length?'':'disabled'} onclick="openLot('${esc(m.sku)}')">Cambiar lote</button></article>`}).join('');const h=dashboard.history;el('history').innerHTML=h.length?`<table><thead><tr><th>Fecha</th><th>Materia prima</th><th>Lote anterior</th><th>Lote nuevo</th><th>Stock</th><th>Operario</th></tr></thead><tbody>${h.map(i=>`<tr><td>${esc(i.changedAt)}</td><td>${esc(i.sku)}</td><td>${esc(i.previousLot||'—')}</td><td>${esc(i.newLot)}</td><td>${num(i.stock)}</td><td>${esc(i.changedBy)}</td></tr>`).join('')}</tbody></table>`:'Todavía no hay cambios registrados.'}
+    function openLot(sku){selectedSku=sku;const m=dashboard.materials.find(i=>i.sku===sku);el('dialogTitle').textContent='Cambiar lote · '+sku;el('scan').value='';el('lotSelect').innerHTML='<option value="">Selecciona un lote…</option>'+m.lots.map(l=>`<option value="${esc(l.id)}">${esc(l.name)} · ${num(l.stock)} ${sku==='INSERTO V4'?'uds':'kg'}${l.barcode?' · '+esc(l.barcode):''}</option>`).join('');el('lotDialog').showModal();setTimeout(()=>el('scan').focus(),100)}
+    function activateLot(){const ref=el('scan').value.trim()||el('lotSelect').value;if(!ref)return notice('Escanea o selecciona un lote.',true);el('activate').disabled=true;google.script.run.withSuccessHandler(r=>{closeDialog('lotDialog');notice(`${r.sku}: lote ${r.lotName} activado correctamente.`,false);el('activate').disabled=false;loadLots()}).withFailureHandler(e=>{notice(e.message||String(e),true);el('activate').disabled=false}).activateProductionLot(selectedSku,ref)}
+    function loadOrders(){el('ordersList').innerHTML='<div class="loading">Cargando órdenes…</div>';google.script.run.withSuccessHandler(data=>{ordersData=data;renderOrders()}).withFailureHandler(e=>notice(e.message||String(e),true)).getManufacturingOrdersData()}
+    function renderOrders(){el('ordersTimestamp').textContent='Actualizado: '+ordersData.generatedAt;el('orderSummary').innerHTML=`<div class="metric"><strong>${ordersData.summary.open}</strong><span>Abiertas</span></div><div class="metric"><strong>${ordersData.summary.closed}</strong><span>Cerradas</span></div><div class="metric"><strong>${ordersData.summary.total}</strong><span>Total</span></div>`;const status=el('orderStatus').value,q=el('orderSearch').value.trim().toLowerCase(),list=ordersData.orders.filter(o=>(status==='TODAS'||o.status===status)&&(!q||[o.id,o.client,o.sku,o.product].join(' ').toLowerCase().includes(q)));el('ordersList').innerHTML=list.length?list.map(o=>`<article class="order-card"><div><div class="order-id">${esc(o.id)}</div><div class="order-product">${esc(o.sku)}</div><div class="hint">${esc(o.product)} · ${esc(o.client)}</div></div><div><strong>${num(o.producedQuantity)} / ${num(o.targetQuantity)} uds</strong> · ${num(o.pendingQuantity)} pendientes<div class="progress"><span style="width:${o.progress}%"></span></div><div class="hint">${o.targetDateDisplay?'Objetivo '+esc(o.targetDateDisplay):'Sin fecha objetivo'}${o.color?' · '+esc(o.color):''}</div></div><div class="order-actions"><span class="badge ${o.status==='ABIERTA'?'ok':'closed'}">${o.status}</span><button class="secondary" onclick="openDetail('${o.id}')">Detalle</button><button class="secondary" onclick="openOrderForm('${o.id}')">Editar</button></div></article>`).join(''):'<div class="panel hint">No hay órdenes que coincidan con el filtro.</div>'}
+    function fillProducts(selected){el('ofSku').innerHTML='<option value="">Selecciona un producto…</option>'+ordersData.catalog.map(i=>`<option value="${esc(i.sku)}" ${i.sku===selected?'selected':''}>${esc(i.sku)} · ${esc(i.product)}</option>`).join('')} function syncOrderProduct(){const i=ordersData.catalog.find(p=>p.sku===el('ofSku').value);el('ofProduct').value=i?i.product:''}
+    function openOrderForm(id){const o=id?ordersData.orders.find(i=>i.id===id):null;el('orderForm').reset();el('ofId').value=o?o.id:'';el('orderFormTitle').textContent=o?'Editar '+o.id:'Nueva orden de fabricación';fillProducts(o?o.sku:'');el('ofClient').value=o?o.client:'';el('ofProduct').value=o?o.product:'';el('ofQuantity').value=o?o.targetQuantity:'';el('ofColor').value=o?o.color:'';el('ofTargetDate').value=o?o.targetDate:'';el('ofStatus').value=o?o.status:'ABIERTA';el('ofNotes').value=o?o.notes:'';el('orderFormDialog').showModal()}
+    function saveOrder(event){event.preventDefault();const id=el('ofId').value,input={client:el('ofClient').value,sku:el('ofSku').value,product:el('ofProduct').value,targetQuantity:el('ofQuantity').value,color:el('ofColor').value,targetDate:el('ofTargetDate').value,status:el('ofStatus').value,notes:el('ofNotes').value};el('saveOrderButton').disabled=true;const runner=google.script.run.withSuccessHandler(r=>{closeDialog('orderFormDialog');notice(`${r.id} guardada correctamente.`,false);el('saveOrderButton').disabled=false;loadOrders()}).withFailureHandler(e=>{notice(e.message||String(e),true);el('saveOrderButton').disabled=false});if(id)runner.updateManufacturingOrder(id,input);else runner.createManufacturingOrder(input)}
+    function openDetail(id){google.script.run.withSuccessHandler(data=>{const o=data.order;el('orderDetail').innerHTML=`<div class="order-top"><div><div class="order-id">${esc(o.id)}</div><h2>${esc(o.sku)} · ${esc(o.product)}</h2><div class="hint">${esc(o.client)}</div></div><span class="badge ${o.status==='ABIERTA'?'ok':'closed'}">${o.status}</span></div><div class="detail-grid"><div class="detail-item"><span>Objetivo</span><strong>${num(o.targetQuantity)} uds</strong></div><div class="detail-item"><span>Fabricadas</span><strong>${num(o.producedQuantity)} uds</strong></div><div class="detail-item"><span>Pendientes</span><strong>${num(o.pendingQuantity)} uds</strong></div><div class="detail-item"><span>Color</span><strong>${esc(o.color||'—')}</strong></div><div class="detail-item"><span>Fecha objetivo</span><strong>${esc(o.targetDateDisplay||'—')}</strong></div><div class="detail-item"><span>Última modificación</span><strong>${esc(o.updatedAt||'—')}</strong></div></div>${o.notes?`<div class="panel"><strong>Observaciones</strong><p>${esc(o.notes)}</p></div>`:''}<h3>Fabricaciones vinculadas</h3>${data.productions.length?`<table><thead><tr><th>Fecha</th><th>Turno</th><th>Uds</th><th>Peso</th><th>Lote PE</th><th>Lote pigmento</th><th>Lote PT</th></tr></thead><tbody>${data.productions.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.shift)}</td><td>${num(r.units)}</td><td>${num(r.realWeight)}</td><td>${esc(r.peLot||'—')}</td><td>${esc(r.pigmentLot||'—')}</td><td>${esc(r.finishedLot||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="panel hint">Todavía no hay fabricaciones vinculadas. Esta asociación se añadirá en la siguiente fase sin alterar el flujo actual de producción.</div>'}`;el('orderDetailDialog').showModal()}).withFailureHandler(e=>notice(e.message||String(e),true)).getManufacturingOrderDetail(id)}
+    el('scan').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();activateLot()}});loadLots();
   </script>
 </body>
 </html>

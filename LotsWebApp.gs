@@ -14,7 +14,7 @@ const LOTS_APP = {
 /** Aplicación web incrustable en Google Sites. No ejecuta movimientos de stock. */
 function doGet() {
   return HtmlService.createHtmlOutputFromFile("LotsWebAppPage")
-    .setTitle("Lotes activos · Rotoformas MES")
+    .setTitle("Rotoformas MES")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
