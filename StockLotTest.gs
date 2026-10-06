@@ -1,12 +1,12 @@
 /**
- * PRUEBA TEMPORAL: suma 0,10 kg al lote "lote Test" de PE NATURAL.
+ * PRUEBA TEMPORAL: resta 0,10 kg al lote "lote Test" de PE NATURAL.
  * Usa la misma API V1, almacén y credencial que applyStockMovements().
  * No forma parte del flujo general de movimientos.
  */
 function testStockPeNaturalLoteTest() {
   const expectedSku = "PE NATURAL";
   const expectedLotNumber = "lote Test";
-  const delta = 0.10;
+  const delta = -0.10;
   const products = holdedRequest_("get", "/products");
 
   if (!Array.isArray(products)) {
