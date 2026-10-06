@@ -28,6 +28,10 @@ const MIGRATION_PRODUCTION_TAGGED_POSITIVE_STOCK = [
   { id: "691f11758d2a6b25b40e1103", sku: "DEP 1500A", stock: 4 },
   { id: "691f11768d2a6b25b40e1109", sku: "DEP 1500AUXA", stock: 4 }
 ];
+const MIGRATION_PRODUCTION_TAGGED_NEGATIVE_STOCK = [
+  { id: "691f11778d2a6b25b40e11b7", sku: "TOBERA 100", stock: -4 },
+  { id: "6920235b5053084968026eef", sku: "ENVOLVENTE U", stock: -14 }
+];
 
 /**
  * Localiza PORTATAPAS por SKU exacto y muestra su JSON completo.
@@ -475,6 +479,114 @@ function migrateProductionTaggedPositiveStockToLots() {
     created: created
   }));
   migrationProductionLogJson_("STK/TY stock positivo / migración completada", JSON.stringify(created));
+  console.log("Revisa manualmente los IVA de compra y las imágenes que procedan.");
+  return created;
+}
+
+/** Intenta conservar el stock negativo al convertir los dos últimos STK/TY a lotes. */
+function migrateProductionTaggedNegativeStockToLots() {
+  const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
+  const normalizeTag = value => normalize(value).replace(/^#+/, "");
+  const sources = MIGRATION_PRODUCTION_TAGGED_NEGATIVE_STOCK.map(expected => {
+    const source = holdedV2Request_("get", "/products/" + expected.id);
+    const tags = (Array.isArray(source.tags) ? source.tags : []).map(normalizeTag);
+    const warehouseStocks = Array.isArray(source.stocks) ? source.stocks : [];
+    if (!source || String(source.id) !== expected.id || normalize(source.sku) !== expected.sku ||
+        source.kind !== "simple") {
+      throw new Error("No coincide el producto autorizado: " + expected.sku + ".");
+    }
+    if (tags.indexOf("STK") === -1 && tags.indexOf("TY") === -1) {
+      throw new Error(expected.sku + " ya no tiene etiqueta STK ni TY.");
+    }
+    if (migrationProductionNumber_(source.stock) !== expected.stock ||
+        warehouseStocks.length !== 1 ||
+        migrationProductionNumber_(warehouseStocks[0].stock) !== expected.stock ||
+        !warehouseStocks[0].warehouse_id) {
+      throw new Error(expected.sku + " ya no tiene exactamente " + expected.stock +
+        " unidades en un único almacén.");
+    }
+    if ((Array.isArray(source.variants) && source.variants.length) ||
+        (source.rates && source.rates.length) ||
+        (source.attributes && source.attributes.length) ||
+        (source.pack_items && source.pack_items.length)) {
+      throw new Error(expected.sku + " contiene variantes, tarifas, atributos o componentes.");
+    }
+    return { source: source, expected: expected };
+  });
+
+  const properties = PropertiesService.getScriptProperties();
+  sources.forEach(item => {
+    const source = item.source;
+    const key = "HOLDED_PROD_BACKUP_" + normalize(source.sku).replace(/[^A-Z0-9]+/g, "_");
+    properties.setProperty(key, JSON.stringify({
+      saved_at: new Date().toISOString(),
+      source: source,
+      ignored_image: source.image || null,
+      manual_purchase_taxes: source.purchase_taxes || []
+    }));
+  });
+  console.log("Preflight correcto y 2 copias guardadas. Se intentará conservar el stock negativo.");
+
+  const created = [];
+  sources.forEach(item => {
+    const source = item.source;
+    const expected = item.expected;
+    const payload = {
+      name: source.name,
+      kind: "lots",
+      description: source.description,
+      sku: source.sku,
+      barcode: source.barcode,
+      price: migrationProductionDecimal_(source.price),
+      cost: migrationProductionDecimal_(source.cost),
+      purchase_price: migrationProductionDecimal_(source.purchase_price),
+      tags: source.tags,
+      taxes: source.taxes,
+      stock: expected.stock,
+      weight: migrationProductionNumber_(source.weight),
+      has_stock: true,
+      for_sale: source.for_sale,
+      for_purchase: source.for_purchase,
+      show_start_date: false,
+      show_end_date: false,
+      warehouse_id: source.stocks[0].warehouse_id,
+      sales_channel_id: source.sales_channel_id,
+      exp_account_id: source.exp_account_id
+    };
+
+    holdedV2Request_("delete", "/products/" + source.id);
+    Utilities.sleep(300);
+    const response = holdedV2Request_("post", "/products", payload);
+    if (!response || !/^[a-fA-F0-9]{24}$/.test(String(response.id || ""))) {
+      throw new Error("Sin ID válido al recrear " + source.sku +
+        ". La copia está en HOLDED_PROD_BACKUP_" +
+        normalize(source.sku).replace(/[^A-Z0-9]+/g, "_") + ".");
+    }
+    Utilities.sleep(300);
+    const verified = holdedV2Request_("get", "/products/" + response.id);
+    if (String(verified.id) !== String(response.id) || verified.kind !== "lots" ||
+        normalize(verified.sku) !== expected.sku ||
+        migrationProductionNumber_(verified.stock) !== expected.stock) {
+      throw new Error("Holded creó " + source.sku +
+        ", pero no conservó el stock negativo esperado " + expected.stock + ".");
+    }
+    created.push({
+      sku: verified.sku,
+      deleted_id: source.id,
+      created_id: verified.id,
+      kind: verified.kind,
+      stock: verified.stock
+    });
+    console.log("Migrado y verificado [" + created.length + "/2]: " +
+      verified.sku + " -> " + verified.id + ", stock " + verified.stock);
+    Utilities.sleep(300);
+  });
+
+  properties.setProperty("HOLDED_PRODUCTION_TAGGED_NEGATIVE_RESULT", JSON.stringify({
+    completed_at: new Date().toISOString(),
+    created: created
+  }));
+  migrationProductionLogJson_("STK/TY stock negativo / migración completada", JSON.stringify(created));
   console.log("Revisa manualmente los IVA de compra y las imágenes que procedan.");
   return created;
 }
