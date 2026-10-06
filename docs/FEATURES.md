@@ -52,7 +52,7 @@ Las materias primas no se actualizan mediante este proceso; sus costes continúa
 
 **Estado:** primera fase publicada
 
-La aplicación web **Lotes activos** está desplegada desde el mismo proyecto de Apps Script e incrustada en la página `Lotes Materia Prima` de la intranet de Google Sites. Su acceso está limitado a usuarios de Rotoformas.
+La aplicación web **Lotes activos** está desplegada desde el mismo proyecto de Apps Script e incrustada en la página `Lotes Materia Prima` de la intranet de Google Sites. La aplicación web admite acceso sin iniciar sesión para que pueda utilizarse desde la pantalla táctil de producción; por ello, su enlace directo debe tratarse como un enlace operativo interno.
 
 El panel consulta en Holded los lotes reales de `PE NATURAL`, `PE MASA`, `PE RECICLADO`, `PIG300`, `PIG301` e `INSERTO V4`. Permite seleccionar un lote por su lista, identificador, nombre o código de barras y registra la selección en las hojas `Lotes activos` y `Cambios de lote`.
 
