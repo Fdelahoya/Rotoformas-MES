@@ -82,6 +82,14 @@ const MIGRATION_PRODUCTION_TC_VARIANT_FAMILIES = [
     { id: "6a269572ab727d7a870f72c9", sku: "LAV 26-M", stock: 6 }
   ] }
 ];
+const MIGRATION_PRODUCTION_MP_SIMPLE = [
+  { id: "698c58b7f604a0a9200db6c5", sku: "PE NATURAL", stock: 32340.3 },
+  { id: "698c5ec19a2a9fd93807d56d", sku: "PIG300", stock: 0.63 },
+  { id: "698c60591c1259c534034de6", sku: "INSERTO V4", stock: -6504 },
+  { id: "69bd13ffa4a5a55a370464ec", sku: "PE MASA", stock: 9714 },
+  { id: "69bd155067eda2cb10004393", sku: "PE RECICLADO", stock: 20133.1 },
+  { id: "6a8d50caa517dca3180c5e4b", sku: "PIG301", stock: -360 }
+];
 
 /**
  * Localiza PORTATAPAS por SKU exacto y muestra su JSON completo.
@@ -251,6 +259,47 @@ function previewMigrationProductionTc() {
   const result = { counts: counts, products: summary };
   migrationProductionLogJson_("TC / preview SOLO LECTURA", JSON.stringify(result));
   console.log("Productos TC encontrados: " + summary.length + ". Tipos: " + JSON.stringify(counts));
+  return result;
+}
+
+/** Inventario de solo lectura de todas las materias primas con etiqueta MP. */
+function previewMigrationProductionMp() {
+  const products = holdedRequest_("get", "/products");
+  if (!Array.isArray(products)) {
+    throw new Error("Holded producción no devolvió un catálogo válido.");
+  }
+  const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
+  const normalizeTag = value => normalize(value).replace(/^#+/, "");
+  const matches = products.filter(product => product &&
+    (Array.isArray(product.tags) ? product.tags : []).map(normalizeTag).indexOf("MP") !== -1
+  );
+  if (!matches.length) {
+    throw new Error("No se encontraron productos con etiqueta MP.");
+  }
+  const summary = matches.map(product => ({
+    id: product.id,
+    kind: product.kind,
+    sku: product.sku,
+    name: product.name,
+    stock: product.stock,
+    stocks: product.stocks,
+    tags: product.tags,
+    variants: Array.isArray(product.variants) ? product.variants.map(variant => ({
+      id: variant.id,
+      sku: variant.sku,
+      stock: variant.stock,
+      price: variant.price,
+      cost: variant.cost
+    })) : []
+  }));
+  const counts = summary.reduce((result, product) => {
+    const kind = product.kind || "unknown";
+    result[kind] = (result[kind] || 0) + 1;
+    return result;
+  }, {});
+  const result = { counts: counts, products: summary };
+  migrationProductionLogJson_("MP / preview SOLO LECTURA", JSON.stringify(result));
+  console.log("Materias primas MP encontradas: " + summary.length + ". Tipos: " + JSON.stringify(counts));
   return result;
 }
 
@@ -693,6 +742,16 @@ function migrateProductionTcSimpleToLots() {
   );
 }
 
+/** Convierte a lotes las seis materias primas con etiqueta MP. */
+function migrateProductionMpSimpleToLots() {
+  return migrationProductionMigrateSimpleBatch_(
+    MIGRATION_PRODUCTION_MP_SIMPLE,
+    "MP simples",
+    "HOLDED_PRODUCTION_MP_SIMPLE_RESULT",
+    "MP"
+  );
+}
+
 function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultProperty, requiredTag) {
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
@@ -707,16 +766,16 @@ function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultP
     if (tags.indexOf(requiredTag) === -1) {
       throw new Error(expected.sku + " ya no tiene etiqueta " + requiredTag + ".");
     }
-    if (migrationProductionNumber_(source.stock) !== expected.stock) {
+    if (!migrationProductionNumbersEqual_(source.stock, expected.stock)) {
       throw new Error(expected.sku + " ya no tiene stock " + expected.stock + ".");
     }
     if (expected.stock !== 0 && (warehouseStocks.length !== 1 ||
-        migrationProductionNumber_(warehouseStocks[0].stock) !== expected.stock ||
+        !migrationProductionNumbersEqual_(warehouseStocks[0].stock, expected.stock) ||
         !warehouseStocks[0].warehouse_id)) {
       throw new Error(expected.sku + " no tiene el stock esperado en un único almacén.");
     }
     if (expected.stock === 0 && warehouseStocks.some(item =>
-      migrationProductionNumber_(item && item.stock) !== 0)) {
+      !migrationProductionNumbersEqual_(item && item.stock, 0))) {
       throw new Error(expected.sku + " tiene stock por almacén distinto de cero.");
     }
     if ((Array.isArray(source.variants) && source.variants.length) ||
@@ -780,7 +839,7 @@ function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultP
     const verified = holdedV2Request_("get", "/products/" + response.id);
     if (String(verified.id) !== String(response.id) || verified.kind !== "lots" ||
         normalize(verified.sku) !== expected.sku ||
-        migrationProductionNumber_(verified.stock) !== expected.stock) {
+        !migrationProductionNumbersEqual_(verified.stock, expected.stock)) {
       throw new Error("Verificación incorrecta de " + source.sku + ".");
     }
     created.push({
@@ -1077,6 +1136,13 @@ function migrationProductionDecimal_(value) {
 function migrationProductionNumber_(value) {
   const decimal = migrationProductionDecimal_(value);
   return decimal == null ? null : Number(decimal);
+}
+
+function migrationProductionNumbersEqual_(leftValue, rightValue) {
+  const left = migrationProductionNumber_(leftValue);
+  const right = migrationProductionNumber_(rightValue);
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+  return Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
 }
 
 function migrationProductionLogJson_(label, body) {
