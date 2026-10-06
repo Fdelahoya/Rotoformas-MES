@@ -47,3 +47,13 @@ La publicación utiliza la API v2 con los permisos `inventory:products.read` e `
 Como medida de seguridad, la publicación nunca toma de la lectura v2 los campos `price`, `cost` o `purchase_price`: los preserva desde v1 para impedir que una actualización de coste borre precios existentes.
 
 Las materias primas no se actualizan mediante este proceso; sus costes continúan procediendo de Holded a través de F-002.
+
+## F-005 - Panel de lotes activos de materias primas
+
+**Estado:** primera fase publicada
+
+La aplicación web **Lotes activos** está desplegada desde el mismo proyecto de Apps Script e incrustada en la página `Lotes Materia Prima` de la intranet de Google Sites. Su acceso está limitado a usuarios de Rotoformas.
+
+El panel consulta en Holded los lotes reales de `PE NATURAL`, `PE MASA`, `PE RECICLADO`, `PIG300`, `PIG301` e `INSERTO V4`. Permite seleccionar un lote por su lista, identificador, nombre o código de barras y registra la selección en las hojas `Lotes activos` y `Cambios de lote`.
+
+Esta primera fase no envía movimientos de stock y no modifica `applyStockMovements()`. La integración del lote activo con los consumos del MES se realizará después de validar el uso operativo del panel.
