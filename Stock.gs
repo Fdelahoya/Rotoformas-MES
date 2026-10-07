@@ -292,6 +292,11 @@ function applyStockMovements() {
   const grouped = {};
   const timestamp = new Date();
   const logRows = [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resumenInfo = getResumenFechaTurno_();
+  const alreadyApplied = readAppliedStockMovementKeys_(ss, resumenInfo);
+  const catalog = readHoldedStockCatalog_();
+  const activeLots = readActiveStockLots_(ss);
 
   // Agrupar por producto real de Holded
   movimientos.forEach(m => {
@@ -300,9 +305,16 @@ function applyStockMovements() {
       return;
     }
 
-    const esVariante = !!m.parentId && m.kind === "variants";
-    const urlProductId = esVariante ? m.parentId : m.productId;
-    const bodyProductId = m.productId;
+    const currentProduct = catalog[normalizeKey_(m.sku)] || null;
+    const isLotManaged = currentProduct && currentProduct.kind === "lots";
+    const esVariante = !isLotManaged && !!m.parentId && m.kind === "variants";
+    const urlProductId = currentProduct && currentProduct.id
+      ? currentProduct.id
+      : (esVariante ? m.parentId : m.productId);
+    const lotResolution = isLotManaged
+      ? resolveStockLot_(m.sku, currentProduct, activeLots)
+      : { lot: null, source: "SIN LOTES" };
+    const bodyProductId = isLotManaged && lotResolution.lot ? lotResolution.lot.id : m.productId;
     const delta = m.sentido === "+" ? m.movimiento : -m.movimiento;
     const key = `${urlProductId}__${bodyProductId}`;
 
@@ -311,6 +323,10 @@ function applyStockMovements() {
         ...m,
         urlProductId,
         bodyProductId,
+        lotId: lotResolution.lot ? lotResolution.lot.id : "",
+        lotName: lotResolution.lot ? safeStr_(lotResolution.lot.sku) : "",
+        lotSource: lotResolution.source,
+        lotError: lotResolution.error || "",
         delta: 0,
         movimientoAgrupado: 0
       };
@@ -323,6 +339,17 @@ function applyStockMovements() {
   Object.values(grouped).forEach((g, idx) => {
     try {
       const delta = round2_(g.delta);
+      const movementKey = buildStockMovementKey_(resumenInfo, g.sku, delta);
+      if (g.lotError) throw new Error(g.lotError);
+      if (alreadyApplied.has(movementKey)) {
+        logRows.push([
+          timestamp, g.sku, g.producto, g.productId, g.parentId || "", g.kind || "",
+          g.tipo, g.unidad, delta >= 0 ? "+" : "-", round2_(Math.abs(g.movimientoAgrupado)),
+          "", "", "OMITIDO", "Ya aplicado anteriormente; no se duplica.",
+          g.lotId, g.lotName, g.lotSource, movementKey
+        ]);
+        return;
+      }
       const url = `${HOLDED_STOCK.baseUrl}/products/${g.urlProductId}/stock`;
 
       const payload = {
@@ -365,7 +392,11 @@ function applyStockMovements() {
         delta,
         "",
         "OK",
-        ""
+        "",
+        g.lotId,
+        g.lotName,
+        g.lotSource,
+        movementKey
       ]);
 
       Utilities.sleep(700); // evita rate limit
@@ -385,7 +416,11 @@ function applyStockMovements() {
         "",
         "",
         "ERROR",
-        e.message
+        e.message,
+        g.lotId || "",
+        g.lotName || "",
+        g.lotSource || "",
+        buildStockMovementKey_(resumenInfo, g.sku, round2_(g.delta))
       ]);
     }
   });
@@ -405,6 +440,66 @@ if (errorCount > 0) {
 } else {
   SpreadsheetApp.getUi().alert("✅ " + msg);
 }
+}
+
+function readHoldedStockCatalog_() {
+  const products = holdedRequest_("get", "/products");
+  if (!Array.isArray(products)) throw new Error("Holded no devolvió un catálogo válido.");
+  const out = {};
+  products.forEach(product => {
+    const sku = safeStr_(product && product.sku);
+    if (sku) out[normalizeKey_(sku)] = product;
+  });
+  return out;
+}
+
+function readActiveStockLots_(ss) {
+  const sheet = ss.getSheetByName(LOTS_APP.activeSheet);
+  return sheet ? readActiveLots_(sheet) : {};
+}
+
+function resolveStockLot_(sku, product, activeLots) {
+  const lots = Array.isArray(product.lots) ? product.lots : [];
+  const active = activeLots[normalizeKey_(sku)] || null;
+  if (active && safeStr_(active.status).toUpperCase() === "ACTIVO") {
+    const selected = lots.find(lot => lot && lot.id === active.lotId);
+    if (selected) return { lot: selected, source: "LOTE ACTIVO MES" };
+  }
+
+  const skuKey = normalizeKey_(sku);
+  const fallback = lots.filter(lot => lot && normalizeKey_(lot.sku) === skuKey);
+  if (fallback.length === 1) return { lot: fallback[0], source: "LOTE SKU" };
+  if (fallback.length > 1) {
+    return { lot: null, source: "", error: `Hay más de un lote llamado '${sku}' en Holded; selecciona un lote activo.` };
+  }
+  return { lot: null, source: "", error: `No hay lote activo válido ni un lote llamado '${sku}' en Holded.` };
+}
+
+function buildStockMovementKey_(info, sku, delta) {
+  return [info.fechaStr, normalizeKey_(info.turno), normalizeKey_(sku), round2_(delta)].join("|");
+}
+
+function readAppliedStockMovementKeys_(ss, resumenInfo) {
+  const out = new Set();
+  const sh = ss.getSheetByName("Holded Log");
+  if (!sh || sh.getLastRow() < 2) return out;
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(safeStr_);
+  const idx = name => headers.indexOf(name);
+  const keyIdx = idx("Clave movimiento");
+  for (let row = 1; row < values.length; row++) {
+    if (safeStr_(values[row][idx("Resultado")]) !== "OK") continue;
+    let key = keyIdx >= 0 ? safeStr_(values[row][keyIdx]) : "";
+    if (!key &&
+        normalizarSoloFechaString(values[row][idx("Fecha resumen")]) === resumenInfo.fechaStr &&
+        normalizeKey_(values[row][idx("Turno")]) === normalizeKey_(resumenInfo.turno)) {
+      const sign = safeStr_(values[row][idx("Sentido")]) === "-" ? -1 : 1;
+      const delta = numberOrZero_(values[row][idx("Movimiento")]) * sign;
+      key = buildStockMovementKey_(resumenInfo, values[row][idx("SKU")], delta);
+    }
+    if (key) out.add(key);
+  }
+  return out;
 }
 function getResumenFechaTurno_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -444,20 +539,26 @@ function writeHoldedLog_(rows) {
     "Delta enviado",
     "Stock nuevo",
     "Resultado",
-    "Detalle"
+    "Detalle",
+    "lotId",
+    "Lote",
+    "Origen lote",
+    "Clave movimiento"
   ];
 
   if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
+  } else if (sh.getLastColumn() < headers.length) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
   }
 
   const { fechaStr, turno } = getResumenFechaTurno_();
 
-  const enrichedRows = rows.map(r => [
-    fechaStr,
-    turno,
-    ...r
-  ]);
+  const enrichedRows = rows.map(r => {
+    const padded = r.slice();
+    while (padded.length < headers.length - 2) padded.push("");
+    return [fechaStr, turno, ...padded];
+  });
 
   if (enrichedRows.length) {
     sh.getRange(sh.getLastRow() + 1, 1, enrichedRows.length, headers.length).setValues(enrichedRows);
@@ -465,4 +566,3 @@ function writeHoldedLog_(rows) {
 
   sh.autoResizeColumns(1, headers.length);
 }
-

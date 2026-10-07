@@ -81,3 +81,10 @@ Al ejecutar **Generar resumen del día**, cada SKU fabricado se vincula automát
 La sincronización es idempotente por fecha y turno: volver a generar el mismo resumen reemplaza sus vínculos anteriores y no duplica unidades.
 
 Esta funcionalidad no genera movimientos de stock y no cambia `applyStockMovements()`.
+## Movimientos de stock con lotes
+
+- Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.
+- Prioridad de selección: lote activo declarado en el MES; si no existe o dejó de ser válido, lote de Holded cuyo nombre coincide exactamente con el SKU.
+- Los productos sin gestión por lotes mantienen el flujo anterior.
+- Los movimientos ya registrados como correctos para la misma fecha, turno, SKU y cantidad se omiten al reintentar, evitando duplicados.
+- `Holded Log` registra el lote, el origen de la selección y una clave única del movimiento.

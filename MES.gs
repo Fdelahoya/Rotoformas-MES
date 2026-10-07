@@ -113,7 +113,7 @@ function onOpen() {
         .addSeparator()
         .addItem("Verificar SKUs del resumen", "verificarSkusResumen")
         .addItem("Preview movimientos stock", "previewStockMovements")
-        .addItem("Aplicar movimientos stock", "applyStockMovements")
+        .addItem("Aplicar/reintentar movimientos stock", "applyStockMovements")
     )
     .addToUi();
 }
