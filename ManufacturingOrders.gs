@@ -2,7 +2,8 @@ const MANUFACTURING_ORDERS = {
   ordersSheet: "Ordenes Fabricacion",
   productionSheet: "Fabricaciones OF",
   openStatus: "ABIERTA",
-  closedStatus: "CERRADA"
+  closedStatus: "CERRADA",
+  premiumClientKeys: ["CONTENUR", "TEYME", "MANN HUMMEL", "TECNOSPRA", "SOLA", "SOLTEKA"]
 };
 
 function getManufacturingOrdersData() {
@@ -12,6 +13,7 @@ function getManufacturingOrdersData() {
   return {
     generatedAt: formatLotsDate_(new Date()),
     orders,
+    clients: readPremiumManufacturingClients_(),
     catalog: readManufacturingOrderCatalog_(ss),
     summary: {
       open: orders.filter(order => order.status === MANUFACTURING_ORDERS.openStatus).length,
@@ -58,7 +60,8 @@ function createManufacturingOrder(input) {
       now,
       now,
       user,
-      user
+      user,
+      data.clientId
     ]);
     return { ok: true, id };
   } finally {
@@ -84,8 +87,8 @@ function updateManufacturingOrder(orderId, input) {
       }
     }
     if (!rowNumber) throw new Error(`No encuentro la orden ${id}.`);
-    const original = sheets.orders.getRange(rowNumber, 1, 1, 13).getValues()[0];
-    sheets.orders.getRange(rowNumber, 1, 1, 13).setValues([[
+    const original = sheets.orders.getRange(rowNumber, 1, 1, 14).getValues()[0];
+    sheets.orders.getRange(rowNumber, 1, 1, 14).setValues([[
       id,
       data.client,
       data.sku,
@@ -98,7 +101,8 @@ function updateManufacturingOrder(orderId, input) {
       original[9] || new Date(),
       new Date(),
       original[11] || "",
-      getManufacturingOrderUser_()
+      getManufacturingOrderUser_(),
+      data.clientId
     ]]);
     return { ok: true, id };
   } finally {
@@ -112,11 +116,13 @@ function ensureManufacturingOrderSheets_(ss) {
   const orderHeaders = [
     "Nº OF", "Cliente", "SKU", "Producto", "Cantidad objetivo", "Color",
     "Fecha objetivo", "Estado", "Observaciones", "Creada", "Modificada",
-    "Creada por", "Modificada por"
+    "Creada por", "Modificada por", "contactId Holded"
   ];
   if (orders.getLastRow() === 0) {
     orders.getRange(1, 1, 1, orderHeaders.length).setValues([orderHeaders]).setFontWeight("bold");
     orders.setFrozenRows(1);
+  } else if (orders.getLastColumn() < orderHeaders.length) {
+    orders.getRange(1, 1, 1, orderHeaders.length).setValues([orderHeaders]).setFontWeight("bold");
   }
 
   let production = ss.getSheetByName(MANUFACTURING_ORDERS.productionSheet);
@@ -248,6 +254,7 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
       updatedAt: formatLotsDate_(values[row][10]),
       createdBy: safeStr_(values[row][11]),
       updatedBy: safeStr_(values[row][12]),
+      clientId: safeStr_(values[row][13]),
       producedQuantity: produced,
       pendingQuantity: Math.max(0, target - produced),
       progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0
@@ -288,6 +295,7 @@ function readManufacturingOrderCatalog_(ss) {
   const nameIdx = getColIndex_(headers, "^producto holded$");
   const typeIdx = getColIndex_(headers, "^tipo");
   const activeIdx = getColIndex_(headers, "^activo");
+  const kindIdx = getColIndex_(headers, "^kind$");
   if (skuIdx < 0 || nameIdx < 0) throw new Error("No localizo SKU y producto en 'Holded Raw'.");
 
   const out = [];
@@ -297,15 +305,37 @@ function readManufacturingOrderCatalog_(ss) {
     if (!sku || seen.has(normalizeKey_(sku))) continue;
     if (activeIdx >= 0 && values[row][activeIdx] !== true) continue;
     if (typeIdx >= 0 && normalizeKey_(values[row][typeIdx]) === "rm") continue;
+    if (kindIdx >= 0 && normalizeKey_(values[row][kindIdx]) !== "lots") continue;
     seen.add(normalizeKey_(sku));
     out.push({ sku, product: safeStr_(values[row][nameIdx]) });
   }
   return out.sort((a, b) => a.sku.localeCompare(b.sku));
 }
 
+function readPremiumManufacturingClients_() {
+  const contacts = holdedRequest_("get", "/contacts");
+  if (!Array.isArray(contacts)) throw new Error("Holded no devolvió un catálogo válido de clientes.");
+  const normalize = value => safeStr_(value)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+  const out = [];
+  const seen = new Set();
+  contacts.forEach(contact => {
+    if (!contact || !contact.id) return;
+    const name = safeStr_(contact.name || contact.tradeName);
+    const searchText = normalize([contact.name, contact.tradeName, contact.code].join(" "));
+    const premiumKey = MANUFACTURING_ORDERS.premiumClientKeys.find(key => searchText.includes(key));
+    if (!premiumKey || !name || seen.has(String(contact.id))) return;
+    seen.add(String(contact.id));
+    out.push({ id: String(contact.id), name, premiumKey });
+  });
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function validateManufacturingOrderInput_(input) {
   const value = input || {};
   const client = safeStr_(value.client);
+  const clientId = safeStr_(value.clientId);
   const sku = safeStr_(value.sku);
   const product = safeStr_(value.product);
   const targetQuantity = Number(value.targetQuantity);
@@ -313,6 +343,10 @@ function validateManufacturingOrderInput_(input) {
   const notes = safeStr_(value.notes);
   const status = safeStr_(value.status).toUpperCase() || MANUFACTURING_ORDERS.openStatus;
   if (!client) throw new Error("El cliente es obligatorio.");
+  if (!clientId) throw new Error("Selecciona un cliente premium de Holded.");
+  const validClient = readPremiumManufacturingClients_()
+    .some(item => item.id === clientId && normalizeKey_(item.name) === normalizeKey_(client));
+  if (!validClient) throw new Error("El cliente seleccionado ya no coincide con un cliente premium de Holded.");
   if (!sku) throw new Error("El SKU es obligatorio.");
   if (!product) throw new Error("El producto es obligatorio.");
   if (!isFinite(targetQuantity) || targetQuantity <= 0) {
@@ -327,7 +361,7 @@ function validateManufacturingOrderInput_(input) {
     if (!parts) throw new Error("La fecha objetivo no es válida.");
     targetDate = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
   }
-  return { client, sku, product, targetQuantity, color, targetDate, status, notes };
+  return { client, clientId, sku, product, targetQuantity, color, targetDate, status, notes };
 }
 
 function nextManufacturingOrderId_(sheet, year) {

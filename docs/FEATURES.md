@@ -72,6 +72,8 @@ La Web App **Rotoformas MES** incorpora el módulo **Órdenes de fabricación**,
 
 Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU, producto, cantidad objetivo, color, fecha objetivo, estado y observaciones. El catálogo seleccionable procede de los productos terminados activos de `Holded Raw`.
 
+El cliente se selecciona del catálogo real de contactos de Holded, limitado a Contenur, Teyme, Mann+Hummel, Tecnospra, Sola y Solteka. Las nuevas OF solo permiten seleccionar productos terminados que ya estén configurados con gestión por lotes.
+
 Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda registra las fabricaciones asociadas automáticamente desde el resumen diario.
 
 ### Asociación con las fabricaciones
