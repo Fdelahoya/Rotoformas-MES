@@ -4,7 +4,7 @@ const MANUFACTURING_ORDERS = {
   openStatus: "ABIERTA",
   closedStatus: "CERRADA",
   premiumClients: [
-    { key: "MO", tag: "MO", contactTerms: ["MOSES", "CONTENUR"] },
+    { key: "MO", tag: "MO", contactTerms: ["MOSES"] },
     { key: "TY", tag: "TY", contactTerms: ["TEYME"] },
     { key: "MH", tag: "MH", contactTerms: ["MANN HUMMEL"] },
     { key: "TC", tag: "TC", contactTerms: ["TECNOSPRA"] },
