@@ -74,6 +74,8 @@ Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU,
 
 El cliente se selecciona del catálogo real de contactos de Holded, limitado a Contenur, Teyme, Mann+Hummel, Tecnospra, Sola y Solteka. Las nuevas OF solo permiten seleccionar productos terminados que ya estén configurados con gestión por lotes.
 
+Los productos se relacionan con el cliente mediante las etiquetas `#MO`, `#TY`, `#MH`, `#TC`, `#SL` y `#STK`. El menú Holded incluye una auditoría de productos premium que todavía no tienen gestión por lotes; la auditoría solo genera un preview y no modifica Holded.
+
 Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda registra las fabricaciones asociadas automáticamente desde el resumen diario.
 
 ### Asociación con las fabricaciones

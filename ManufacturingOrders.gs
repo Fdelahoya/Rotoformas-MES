@@ -3,7 +3,14 @@ const MANUFACTURING_ORDERS = {
   productionSheet: "Fabricaciones OF",
   openStatus: "ABIERTA",
   closedStatus: "CERRADA",
-  premiumClientKeys: ["CONTENUR", "TEYME", "MANN HUMMEL", "TECNOSPRA", "SOLA", "SOLTEKA"]
+  premiumClients: [
+    { key: "MO", tag: "MO", contactTerms: ["MOSES", "CONTENUR"] },
+    { key: "TY", tag: "TY", contactTerms: ["TEYME"] },
+    { key: "MH", tag: "MH", contactTerms: ["MANN HUMMEL"] },
+    { key: "TC", tag: "TC", contactTerms: ["TECNOSPRA"] },
+    { key: "SL", tag: "SL", contactTerms: ["SOLA"] },
+    { key: "STK", tag: "STK", contactTerms: ["SOLTEKA"] }
+  ]
 };
 
 function getManufacturingOrdersData() {
@@ -319,7 +326,15 @@ function readManufacturingOrderCatalog_(ss) {
     const raw = rawBySku[normalizeKey_(sku)] || null;
     if (!raw || !raw.active || raw.type === "rm") return;
     seen.add(normalizeKey_(sku));
-    out.push({ sku, product: safeStr_(item.name || raw.product), productId: safeStr_(item.id) });
+    const tags = (Array.isArray(item.tags) ? item.tags : []).map(normalizeManufacturingTag_);
+    const client = MANUFACTURING_ORDERS.premiumClients.find(config => tags.includes(config.tag));
+    if (!client) return;
+    out.push({
+      sku,
+      product: safeStr_(item.name || raw.product),
+      productId: safeStr_(item.id),
+      clientKey: client.key
+    });
   });
   return out.sort((a, b) => a.sku.localeCompare(b.sku));
 }
@@ -336,12 +351,55 @@ function readPremiumManufacturingClients_() {
     if (!contact || !contact.id) return;
     const name = safeStr_(contact.name || contact.tradeName);
     const searchText = normalize([contact.name, contact.tradeName, contact.code].join(" "));
-    const premiumKey = MANUFACTURING_ORDERS.premiumClientKeys.find(key => searchText.includes(key));
-    if (!premiumKey || !name || seen.has(String(contact.id))) return;
+    const config = MANUFACTURING_ORDERS.premiumClients.find(item =>
+      item.contactTerms.some(term => searchText.includes(term))
+    );
+    if (!config || !name || seen.has(String(contact.id))) return;
     seen.add(String(contact.id));
-    out.push({ id: String(contact.id), name, premiumKey });
+    out.push({ id: String(contact.id), name, premiumKey: config.key, productTag: config.tag });
   });
   return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function normalizeManufacturingTag_(value) {
+  return safeStr_(value).replace(/^#+/, "").toUpperCase();
+}
+
+function previewPremiumProductsWithoutLots() {
+  const products = holdedRequest_("get", "/products");
+  if (!Array.isArray(products)) throw new Error("Holded no devolvió un catálogo válido de productos.");
+  const rows = [];
+  products.forEach(product => {
+    const tags = (Array.isArray(product && product.tags) ? product.tags : []).map(normalizeManufacturingTag_);
+    const configs = MANUFACTURING_ORDERS.premiumClients.filter(config => tags.includes(config.tag));
+    configs.forEach(config => {
+      if (normalizeKey_(product.kind) === "lots") return;
+      if (product.kind === "variants" && Array.isArray(product.variants) && product.variants.length) {
+        product.variants.forEach(variant => rows.push([
+          config.key, "#" + config.tag, safeStr_(variant.sku || product.sku),
+          safeStr_(product.name), safeStr_(product.id), safeStr_(variant.id),
+          safeStr_(product.kind), numberOrZero_(variant.stock), "PENDIENTE CONVERTIR"
+        ]));
+      } else {
+        rows.push([
+          config.key, "#" + config.tag, safeStr_(product.sku), safeStr_(product.name),
+          safeStr_(product.id), "", safeStr_(product.kind), numberOrZero_(product.stock),
+          "PENDIENTE CONVERTIR"
+        ]);
+      }
+    });
+  });
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("Premium sin lotes");
+  if (!sheet) sheet = ss.insertSheet("Premium sin lotes");
+  sheet.clearContents();
+  const headers = ["Cliente", "Etiqueta", "SKU", "Producto", "productId", "variantId", "Kind", "Stock", "Estado"];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
+  if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, headers.length);
+  SpreadsheetApp.getUi().alert(`Auditoría premium: ${rows.length} SKU pendientes de gestión por lotes.`);
+  return { pending: rows.length };
 }
 
 function validateManufacturingOrderInput_(input) {
