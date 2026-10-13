@@ -1,8 +1,11 @@
 const MANUFACTURING_ORDERS = {
   ordersSheet: "Ordenes Fabricacion",
   productionSheet: "Fabricaciones OF",
+  qualitySheet: "Pesajes calidad",
   openStatus: "ABIERTA",
   closedStatus: "CERRADA",
+  weightWarningPercent: 3,
+  weightRejectPercent: 6,
   premiumClients: [
     { key: "MO", tag: "MO", contactTerms: ["MOSES"] },
     { key: "TY", tag: "TY", contactTerms: ["TEYME"] },
@@ -201,8 +204,76 @@ function getManufacturingOrderDetail(orderId) {
   if (!order) throw new Error(`No encuentro la orden ${id}.`);
   return {
     order,
-    productions: readProductionsForOrder_(sheets.production, id)
+    productions: readProductionsForOrder_(sheets.production, id),
+    quality: getManufacturingQualityData_(sheets.quality, order)
   };
+}
+
+function recordManufacturingPieceWeight(input) {
+  assertLotsWebAppAccess_();
+  const data = input || {};
+  const orderId = safeStr_(data.orderId);
+  const actualWeight = Number(String(data.actualWeight || "").replace(",", "."));
+  if (!orderId) throw new Error("No se ha indicado la orden de fabricación.");
+  if (!isFinite(actualWeight) || actualWeight <= 0) throw new Error("Introduce un peso real mayor que cero.");
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const order = readManufacturingOrders_(sheets.orders, sheets.production)
+    .find(item => item.id === orderId);
+  if (!order) throw new Error(`No encuentro la orden ${orderId}.`);
+  const theoreticalWeight = readManufacturingTheoreticalWeight_(ss, order.sku);
+  if (!(theoreticalWeight > 0)) {
+    throw new Error(`El producto ${order.sku} no tiene un peso teórico válido en Holded Raw.`);
+  }
+
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(15000);
+  try {
+    const values = sheets.quality.getDataRange().getValues();
+    let pieceNumber = 1;
+    for (let row = 1; row < values.length; row++) {
+      if (safeStr_(values[row][2]) === orderId) {
+        pieceNumber = Math.max(pieceNumber, numberOrZero_(values[row][6]) + 1);
+      }
+    }
+    const difference = actualWeight - theoreticalWeight;
+    const deviationPercent = Math.abs(difference) / theoreticalWeight * 100;
+    const result = classifyManufacturingWeight_(deviationPercent);
+    const now = new Date();
+    const user = getManufacturingOrderUser_();
+    sheets.quality.appendRow([
+      now,
+      user,
+      order.id,
+      order.finishedLot,
+      order.sku,
+      order.product,
+      pieceNumber,
+      theoreticalWeight,
+      actualWeight,
+      difference,
+      deviationPercent,
+      result,
+      safeStr_(data.notes)
+    ]);
+    return {
+      ok: true,
+      orderId: order.id,
+      finishedLot: order.finishedLot,
+      pieceNumber,
+      theoreticalWeight,
+      actualWeight,
+      difference,
+      deviationPercent,
+      result,
+      measuredAt: formatLotsDate_(now),
+      measuredBy: user,
+      quality: getManufacturingQualityData_(sheets.quality, order)
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getTraceabilityRecord(reference) {
@@ -217,6 +288,7 @@ function getTraceabilityRecord(reference) {
   );
   if (!order) throw new Error("No encuentro una orden de fabricación para ese lote.");
   const productions = readProductionsForOrder_(sheets.production, order.id);
+  const quality = getManufacturingQualityData_(sheets.quality, order);
   const timeline = [{ date: order.createdAt, event: "OF creada" }];
   productions.slice().reverse().forEach(item => timeline.push({
     date: [item.date, item.shift].filter(Boolean).join(" · "),
@@ -232,6 +304,7 @@ function getTraceabilityRecord(reference) {
       : order.producedQuantity > 0 ? "EN PRODUCCIÓN" : "PLANIFICADO",
     order,
     productions,
+    quality,
     timeline
   };
 }
@@ -355,7 +428,78 @@ function ensureManufacturingOrderSheets_(ss) {
   } else if (production.getLastColumn() < productionHeaders.length) {
     production.getRange(1, 1, 1, productionHeaders.length).setValues([productionHeaders]).setFontWeight("bold");
   }
-  return { orders, production };
+
+  let quality = ss.getSheetByName(MANUFACTURING_ORDERS.qualitySheet);
+  if (!quality) quality = ss.insertSheet(MANUFACTURING_ORDERS.qualitySheet);
+  const qualityHeaders = [
+    "Fecha y hora", "Operario", "Nº OF", "Lote producto terminado", "SKU", "Producto",
+    "Nº pieza", "Peso teórico", "Peso real", "Diferencia", "Desviación %", "Resultado", "Observaciones"
+  ];
+  if (quality.getLastRow() === 0) {
+    quality.getRange(1, 1, 1, qualityHeaders.length).setValues([qualityHeaders]).setFontWeight("bold");
+    quality.setFrozenRows(1);
+  } else if (quality.getLastColumn() < qualityHeaders.length) {
+    quality.getRange(1, 1, 1, qualityHeaders.length).setValues([qualityHeaders]).setFontWeight("bold");
+  }
+  return { orders, production, quality };
+}
+
+function readManufacturingTheoreticalWeight_(ss, sku) {
+  const sheet = ss.getSheetByName("Holded Raw");
+  if (!sheet) throw new Error("No existe la hoja 'Holded Raw'.");
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return 0;
+  const skuIdx = getColIndex_(values[0], "^sku holded$");
+  const weightIdx = getColIndex_(values[0], "^peso$");
+  if (skuIdx < 0 || weightIdx < 0) throw new Error("No localizo SKU y Peso en 'Holded Raw'.");
+  const key = normalizeKey_(sku);
+  for (let row = 1; row < values.length; row++) {
+    if (normalizeKey_(values[row][skuIdx]) === key) return numberOrZero_(values[row][weightIdx]);
+  }
+  return 0;
+}
+
+function classifyManufacturingWeight_(deviationPercent) {
+  if (deviationPercent <= MANUFACTURING_ORDERS.weightWarningPercent) return "CONFORME";
+  if (deviationPercent < MANUFACTURING_ORDERS.weightRejectPercent) return "ALERTA";
+  return "NO CONFORME";
+}
+
+function getManufacturingQualityData_(sheet, order) {
+  const values = sheet.getDataRange().getValues();
+  const measurements = [];
+  for (let row = 1; row < values.length; row++) {
+    if (safeStr_(values[row][2]) !== order.id) continue;
+    measurements.push({
+      measuredAt: formatLotsDate_(values[row][0]),
+      measuredBy: safeStr_(values[row][1]),
+      pieceNumber: numberOrZero_(values[row][6]),
+      theoreticalWeight: numberOrZero_(values[row][7]),
+      actualWeight: numberOrZero_(values[row][8]),
+      difference: numberOrZero_(values[row][9]),
+      deviationPercent: numberOrZero_(values[row][10]),
+      result: safeStr_(values[row][11]),
+      notes: safeStr_(values[row][12])
+    });
+  }
+  const actualWeights = measurements.map(item => item.actualWeight);
+  const conforming = measurements.filter(item => item.result === "CONFORME").length;
+  const warnings = measurements.filter(item => item.result === "ALERTA").length;
+  const rejected = measurements.filter(item => item.result === "NO CONFORME").length;
+  return {
+    theoreticalWeight: measurements.length
+      ? measurements[measurements.length - 1].theoreticalWeight
+      : readManufacturingTheoreticalWeight_(SpreadsheetApp.getActiveSpreadsheet(), order.sku),
+    measured: measurements.length,
+    conforming,
+    warnings,
+    rejected,
+    conformingPercent: measurements.length ? Math.round(conforming / measurements.length * 1000) / 10 : 0,
+    averageWeight: actualWeights.length ? actualWeights.reduce((sum, value) => sum + value, 0) / actualWeights.length : 0,
+    minWeight: actualWeights.length ? Math.min.apply(null, actualWeights) : 0,
+    maxWeight: actualWeights.length ? Math.max.apply(null, actualWeights) : 0,
+    measurements: measurements.reverse()
+  };
 }
 
 function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftText) {

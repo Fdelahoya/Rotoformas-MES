@@ -98,6 +98,20 @@ Cada OF genera un único lote de producto terminado con el formato `SKU-MMYYYY-O
 
 La pestaña **Trazabilidad** permite consultar el lote o el número de OF y muestra producto, estado, cliente, pedido de Holded, cantidades, fechas, color y el detalle de cada fabricación con sus lotes de PE y pigmento. Una URL con el parámetro `?lote=` abre directamente la ficha y será el destino de los futuros códigos QR.
 
+### Control de peso por pieza
+
+Las órdenes de fabricación permiten registrar el peso bruto individual de cada pieza al salir del horno, antes de mecanizado, recorte o retrabajo. El peso teórico se obtiene de la columna `Peso` de `Holded Raw`, sincronizada con el campo de peso del producto en Holded.
+
+Cada medición queda vinculada internamente a la OF y al lote terminado, con número correlativo de pieza, peso teórico, peso real, diferencia, desviación porcentual, fecha, operario y observaciones. Todas las piezas de la OF comparten el mismo QR de lote; el correlativo de pieza se utiliza únicamente para el control interno de calidad.
+
+La clasificación utiliza la desviación absoluta respecto al peso teórico:
+
+- `CONFORME`: desviación menor o igual al 3 %;
+- `ALERTA`: desviación superior al 3 % e inferior al 6 %;
+- `NO CONFORME`: desviación igual o superior al 6 %.
+
+Una medición no conforme genera una alerta roja muy visible para apartar la pieza y revisar el proceso. Los pesajes se almacenan en la hoja `Pesajes calidad`, y la ficha de trazabilidad muestra el resumen del lote, la media, mínimo, máximo y el detalle de todas las mediciones.
+
 ## Movimientos de stock con lotes
 
 - Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.
