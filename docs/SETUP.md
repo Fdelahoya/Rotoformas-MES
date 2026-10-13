@@ -53,3 +53,17 @@ El ID de la hoja se guarda en la propiedad `HOLDED_SPREADSHEET_ID`, lo que permi
 6. Cuando la prueba controlada sea correcta, genera otra vista previa y aplica los productos deseados.
 
 La actualización de costes es manual y requiere selección expresa. No forma parte del activador diario de las 06:00. Esta separación evita que un registro anómalo de fabricación modifique automáticamente todo el catálogo.
+
+## Publicación de la Web App del MES
+
+La Web App de producción se publica desde **Apps Script → Implementar → Gestionar implementaciones** con esta configuración:
+
+- tipo: **Aplicación web**;
+- ejecutar como: **Fidel (`fidel@rotoformas.com`)**;
+- acceso: **Cualquier usuario**.
+
+URL de producción actual:
+
+`https://script.google.com/macros/s/AKfycbw1ferF8Eq8ukv9w7eGBnquYFtGSopEdUDIH_aHihE9UfzBppXiL4hPHdAhvl2ssmOavA/exec`
+
+La URL está incrustada en Google Sites, en **Producción y trazabilidad**. Para publicar una nueva versión, debe editarse esta implementación desde la interfaz de Apps Script y seleccionarse la versión nueva. No debe actualizarse mediante `clasp deploy -i`, porque ese proceso puede sustituir la configuración de aplicación web por una implementación de biblioteca y dejar inservible el enlace público. `clasp push` sí se utiliza para subir el código antes de crear la versión.

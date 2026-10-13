@@ -85,6 +85,13 @@ Al ejecutar **Generar resumen del día**, cada SKU fabricado se vincula automát
 La sincronización es idempotente por fecha y turno: volver a generar el mismo resumen reemplaza sus vínculos anteriores y no duplica unidades.
 
 Esta funcionalidad no genera movimientos de stock y no cambia `applyStockMovements()`.
+
+### Creación desde pedidos de venta
+
+La pestaña **Pedidos pendientes** consulta en Holded los pedidos de venta abiertos de clientes premium y presenta una propuesta de OF por cada línea cuyo producto tenga gestión por lotes. Begoña puede revisar la propuesta y crear la OF conservando el pedido y la línea de origen.
+
+Antes de guardar, el servidor vuelve a leer el pedido en Holded. Cada línea solo puede originar una OF, lo que evita duplicados incluso si dos usuarios trabajan a la vez. La creación manual permanece disponible para fabricación para stock, pruebas y casos internos sin pedido de venta.
+
 ## Movimientos de stock con lotes
 
 - Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.
