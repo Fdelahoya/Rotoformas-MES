@@ -15,7 +15,8 @@ const LOTS_APP = {
 /** Aplicación web incrustable en Google Sites. No ejecuta movimientos de stock. */
 function doGet(e) {
   const mode = safeStr_(e && e.parameter && e.parameter.modo).toLowerCase();
-  if (mode === "pesaje") {
+  const email = safeStr_(Session.getActiveUser().getEmail()).toLowerCase();
+  if (mode === "pesaje" || !LOTS_APP.allowedUsers.includes(email)) {
     return HtmlService.createTemplateFromFile("PlantWeightPage").evaluate()
       .setTitle("Rotoformas · Pesaje en planta")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
