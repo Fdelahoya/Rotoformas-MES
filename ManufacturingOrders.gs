@@ -152,6 +152,8 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   const sheets = ensureManufacturingOrderSheets_(ss);
   const shift = safeStr_(shiftText);
   const sourcePrefix = `RESUMEN|${safeStr_(dateText)}|${shift}|`;
+  const activeLotsSheet = ss.getSheetByName(LOTS_APP.activeSheet);
+  const activeLots = activeLotsSheet ? readActiveLots_(activeLotsSheet) : {};
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
@@ -180,6 +182,9 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
       if (!order) return;
+      const peLot = getActiveManufacturingLotName_(activeLots, item.materialSku);
+      const pigmentLot = getActiveManufacturingLotName_(activeLots, item.pigmentSku);
+      const finishedLot = buildFinishedProductLotName_(sku, date);
       rowsToAppend.push([
         date,
         shift,
@@ -187,9 +192,9 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
         sku,
         units,
         numberOrZero_(item.kgTotal || item.realWeight),
-        "",
-        "",
-        "",
+        peLot,
+        pigmentLot,
+        finishedLot,
         sourcePrefix + normalizeKey_(sku),
         now
       ]);
@@ -209,6 +214,22 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   } finally {
     lock.releaseLock();
   }
+}
+
+function getActiveManufacturingLotName_(activeLots, sku) {
+  const key = normalizeKey_(sku);
+  if (!key) return "";
+  const active = activeLots[key] || null;
+  if (!active || safeStr_(active.status).toUpperCase() !== "ACTIVO") return "";
+  return safeStr_(active.lotName);
+}
+
+function buildFinishedProductLotName_(sku, productionDate) {
+  const cleanSku = safeStr_(sku);
+  if (!cleanSku) return "";
+  const date = productionDate instanceof Date ? productionDate : new Date(productionDate);
+  if (isNaN(date.getTime())) return "";
+  return cleanSku + "-" + Utilities.formatDate(date, Session.getScriptTimeZone(), "MMyyyy");
 }
 
 function removeManufacturingOrderLinksBySource_(sheet, sourcePrefix) {

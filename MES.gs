@@ -220,6 +220,16 @@ const filasCalc = pares.map(p => {
   const esReciclado = recycledSkus.has(skuKey);
   const esMasa = /-M(\s|$)/.test(skuOriginal);
 
+  const materialSku = esReciclado
+    ? "PE RECICLADO"
+    : esMasa
+      ? "PE MASA"
+      : "PE NATURAL";
+
+  let pigmentSku = "";
+  if (skuOriginal === "PORTATAPAS") pigmentSku = "PIG300";
+  if (skuOriginal === "PORTATAPAS OVAL2000") pigmentSku = "PIG301";
+
   const precioPE = esReciclado
     ? numberOrZero_(costes.peReciclado)
     : esMasa
@@ -240,7 +250,9 @@ const filasCalc = pares.map(p => {
     precioVenta,
     ingresos,
     precioPE,
-    costeMaterial
+    costeMaterial,
+    materialSku,
+    pigmentSku
   };
 });
 
