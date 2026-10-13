@@ -72,9 +72,9 @@ La Web App **Rotoformas MES** incorpora el módulo **Órdenes de fabricación**,
 
 Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU, producto, cantidad objetivo, color, fecha objetivo, estado y observaciones. El catálogo seleccionable procede de los productos terminados activos de `Holded Raw`.
 
-El cliente se selecciona del catálogo real de contactos de Holded, limitado a Contenur, Teyme, Mann+Hummel, Tecnospra, Sola y Solteka. Las nuevas OF solo permiten seleccionar productos terminados que ya estén configurados con gestión por lotes.
+El cliente se selecciona del catálogo real de contactos de Holded, limitado inicialmente a Contenur, Teyme, Mann+Hummel, Tecnospra, Sola y Solteka. Las nuevas OF solo permiten seleccionar productos terminados que ya estén configurados con gestión por lotes.
 
-Los productos se relacionan con el cliente mediante las etiquetas `#MO`, `#TY`, `#MH`, `#TC`, `#SL` y `#STK`. El menú Holded incluye una auditoría de productos premium que todavía no tienen gestión por lotes; la auditoría solo genera un preview y no modifica Holded.
+Los productos se relacionan con el cliente mediante las etiquetas `#MO`, `#TY`, `#MH`, `#TC`, `#SL` y `#STK`. El menú Holded incluye una auditoría de productos seleccionados que todavía no tienen gestión por lotes; la auditoría solo genera un preview y no modifica Holded.
 
 Los datos se almacenan en las hojas `Ordenes Fabricacion` y `Fabricaciones OF`. La segunda registra las fabricaciones asociadas automáticamente desde el resumen diario.
 
@@ -88,7 +88,7 @@ Esta funcionalidad no genera movimientos de stock y no cambia `applyStockMovemen
 
 ### Creación desde pedidos de venta
 
-La pestaña **Pedidos pendientes** consulta en Holded los pedidos de venta abiertos de clientes premium y presenta una propuesta de OF por cada línea cuyo producto tenga gestión por lotes. Begoña puede revisar la propuesta y crear la OF conservando el pedido y la línea de origen.
+La pestaña **Pedidos pendientes** consulta en Holded los pedidos de venta abiertos de los clientes incluidos en la planificación y presenta una propuesta de OF por cada línea cuyo producto tenga gestión por lotes. Begoña puede revisar la propuesta y crear la OF conservando el pedido y la línea de origen.
 
 Antes de guardar, el servidor vuelve a leer el pedido en Holded. Cada línea solo puede originar una OF, lo que evita duplicados incluso si dos usuarios trabajan a la vez. La creación manual permanece disponible para fabricación para stock, pruebas y casos internos sin pedido de venta.
 

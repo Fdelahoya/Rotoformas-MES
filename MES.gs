@@ -105,7 +105,7 @@ function onOpen() {
     .addSubMenu(
       SpreadsheetApp.getUi().createMenu("Holded")
         .addItem("Actualizar catálogo Holded", "syncHoldedProducts")
-        .addItem("Auditar productos premium sin lotes", "previewPremiumProductsWithoutLots")
+        .addItem("Auditar productos sin gestión por lotes", "previewPremiumProductsWithoutLots")
         .addItem("Configurar token API v2", "configureHoldedApiV2Token")
         .addItem("Reparar precios desde respaldo", "repairHoldedPricesFromBackup")
         .addSeparator()

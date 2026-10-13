@@ -1,6 +1,7 @@
 const LOTS_APP = {
   activeSheet: "Lotes activos",
   historySheet: "Cambios de lote",
+  allowedUsers: ["fidel@rotoformas.com", "bflorentin@rotoformas.com"],
   materialSkus: [
     "PE NATURAL",
     "PE MASA",
@@ -13,12 +14,14 @@ const LOTS_APP = {
 
 /** Aplicación web incrustable en Google Sites. No ejecuta movimientos de stock. */
 function doGet() {
+  assertLotsWebAppAccess_();
   return HtmlService.createHtmlOutputFromFile("LotsWebAppPage")
     .setTitle("Rotoformas MES")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function getLotsDashboardData() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureLotsSheets_(ss);
   const products = getLotManagedMaterials_();
@@ -62,6 +65,7 @@ function getLotsDashboardData() {
  * Esta función solo guarda la selección del MES; no modifica stock en Holded.
  */
 function activateProductionLot(sku, lotReference) {
+  assertLotsWebAppAccess_();
   const expectedSku = safeStr_(sku);
   const reference = safeStr_(lotReference);
   if (!expectedSku || !reference) {
@@ -136,6 +140,14 @@ function activateProductionLot(sku, lotReference) {
     changedAt: formatLotsDate_(now),
     changedBy: user
   };
+}
+
+function assertLotsWebAppAccess_() {
+  const email = safeStr_(Session.getActiveUser().getEmail()).toLowerCase();
+  if (!LOTS_APP.allowedUsers.includes(email)) {
+    throw new Error("Acceso restringido. Inicia sesión con una cuenta autorizada de Rotoformas.");
+  }
+  return email;
 }
 
 function getLotManagedMaterials_() {

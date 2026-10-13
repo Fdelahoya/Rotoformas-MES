@@ -59,11 +59,13 @@ La actualización de costes es manual y requiere selección expresa. No forma pa
 La Web App de producción se publica desde **Apps Script → Implementar → Gestionar implementaciones** con esta configuración:
 
 - tipo: **Aplicación web**;
-- ejecutar como: **Fidel (`fidel@rotoformas.com`)**;
-- acceso: **Cualquier usuario**.
+- ejecutar como: **Usuario que accede a la aplicación web**;
+- acceso: **Cualquier usuario de Rotoformas**.
+
+La aplicación valida además una lista cerrada de usuarios autorizados: `fidel@rotoformas.com` y `bflorentin@rotoformas.com`.
 
 URL de producción actual:
 
-`https://script.google.com/macros/s/AKfycbw1ferF8Eq8ukv9w7eGBnquYFtGSopEdUDIH_aHihE9UfzBppXiL4hPHdAhvl2ssmOavA/exec`
+`https://script.google.com/a/macros/rotoformas.com/s/AKfycbw1ferF8Eq8ukv9w7eGBnquYFtGSopEdUDIH_aHihE9UfzBppXiL4hPHdAhvl2ssmOavA/exec`
 
-La URL está incrustada en Google Sites, en **Producción y trazabilidad**. Para publicar una nueva versión, debe editarse esta implementación desde la interfaz de Apps Script y seleccionarse la versión nueva. No debe actualizarse mediante `clasp deploy -i`, porque ese proceso puede sustituir la configuración de aplicación web por una implementación de biblioteca y dejar inservible el enlace público. `clasp push` sí se utiliza para subir el código antes de crear la versión.
+La URL está incrustada en Google Sites, en **Producción y trazabilidad**, y la página está oculta de la navegación pública. Para publicar una nueva versión, debe editarse esta implementación desde la interfaz de Apps Script y seleccionarse la versión nueva. No debe actualizarse mediante `clasp deploy -i`, porque ese proceso puede sustituir la configuración de aplicación web por una implementación de biblioteca y dejar inservible el enlace. `clasp push` sí se utiliza para subir el código antes de crear la versión.

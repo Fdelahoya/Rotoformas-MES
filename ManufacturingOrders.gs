@@ -63,6 +63,7 @@ function previewTecnospraSalesOrderDetails() {
 }
 
 function getManufacturingOrdersData() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const orders = readManufacturingOrders_(sheets.orders, sheets.production);
@@ -80,6 +81,7 @@ function getManufacturingOrdersData() {
 }
 
 function getPremiumSalesOrderProposals() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const existingLineIds = readImportedSalesOrderLineIds_(sheets.orders);
@@ -144,6 +146,7 @@ function getPremiumSalesOrderProposals() {
 }
 
 function createManufacturingOrderFromSalesOrderLine(input) {
+  assertLotsWebAppAccess_();
   const value = input || {};
   const salesOrderId = safeStr_(value.salesOrderId);
   const salesOrderLineId = safeStr_(value.salesOrderLineId);
@@ -164,7 +167,7 @@ function createManufacturingOrderFromSalesOrderLine(input) {
   }
   const catalogItem = readManufacturingOrderCatalog_(ss)
     .find(item => normalizeKey_(item.sku) === normalizeKey_(line.sku));
-  if (!catalogItem) throw new Error("El producto no está disponible como referencia premium con gestión por lotes.");
+  if (!catalogItem) throw new Error("El producto no está disponible como referencia con gestión por lotes.");
 
   const notes = [
     safeStr_(line.desc),
@@ -188,6 +191,7 @@ function createManufacturingOrderFromSalesOrderLine(input) {
 }
 
 function getManufacturingOrderDetail(orderId) {
+  assertLotsWebAppAccess_();
   const id = safeStr_(orderId);
   if (!id) throw new Error("No se ha indicado el número de OF.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -202,6 +206,7 @@ function getManufacturingOrderDetail(orderId) {
 }
 
 function createManufacturingOrder(input) {
+  assertLotsWebAppAccess_();
   const data = validateManufacturingOrderInput_(input);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
@@ -241,6 +246,7 @@ function createManufacturingOrder(input) {
 }
 
 function updateManufacturingOrder(orderId, input) {
+  assertLotsWebAppAccess_();
   const id = safeStr_(orderId);
   if (!id) throw new Error("No se ha indicado el número de OF.");
   const data = validateManufacturingOrderInput_(input);
@@ -627,15 +633,20 @@ function previewPremiumProductsWithoutLots() {
     });
   });
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName("Premium sin lotes");
-  if (!sheet) sheet = ss.insertSheet("Premium sin lotes");
+  let sheet = ss.getSheetByName("Productos sin lotes");
+  const oldSheet = ss.getSheetByName("Premium sin lotes");
+  if (!sheet && oldSheet) {
+    oldSheet.setName("Productos sin lotes");
+    sheet = oldSheet;
+  }
+  if (!sheet) sheet = ss.insertSheet("Productos sin lotes");
   sheet.clearContents();
   const headers = ["Cliente", "Etiqueta", "SKU", "Producto", "productId", "variantId", "Kind", "Stock", "Estado"];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
   if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   sheet.setFrozenRows(1);
   sheet.autoResizeColumns(1, headers.length);
-  SpreadsheetApp.getUi().alert(`Auditoría premium: ${rows.length} SKU pendientes de gestión por lotes.`);
+  SpreadsheetApp.getUi().alert(`Auditoría de lotes: ${rows.length} SKU pendientes de gestión por lotes.`);
   return { pending: rows.length };
 }
 
@@ -654,10 +665,10 @@ function validateManufacturingOrderInput_(input) {
   const salesOrderLineId = safeStr_(value.salesOrderLineId);
   const salesOrderQuantity = numberOrZero_(value.salesOrderQuantity);
   if (!client) throw new Error("El cliente es obligatorio.");
-  if (!clientId) throw new Error("Selecciona un cliente premium de Holded.");
+  if (!clientId) throw new Error("Selecciona un cliente de Holded.");
   const validClient = readPremiumManufacturingClients_()
     .some(item => item.id === clientId && normalizeKey_(item.name) === normalizeKey_(client));
-  if (!validClient) throw new Error("El cliente seleccionado ya no coincide con un cliente premium de Holded.");
+  if (!validClient) throw new Error("El cliente seleccionado ya no está incluido en la planificación de fabricación.");
   if (!sku) throw new Error("El SKU es obligatorio.");
   if (!product) throw new Error("El producto es obligatorio.");
   if (!isFinite(targetQuantity) || targetQuantity <= 0) {
