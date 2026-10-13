@@ -205,6 +205,37 @@ function getManufacturingOrderDetail(orderId) {
   };
 }
 
+function getTraceabilityRecord(reference) {
+  assertLotsWebAppAccess_();
+  const query = normalizeKey_(reference);
+  if (!query) throw new Error("Escanea un QR o introduce un lote de producto terminado.");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const orders = readManufacturingOrders_(sheets.orders, sheets.production);
+  const order = orders.find(item =>
+    normalizeKey_(item.finishedLot) === query || normalizeKey_(item.id) === query
+  );
+  if (!order) throw new Error("No encuentro una orden de fabricación para ese lote.");
+  const productions = readProductionsForOrder_(sheets.production, order.id);
+  const timeline = [{ date: order.createdAt, event: "OF creada" }];
+  productions.slice().reverse().forEach(item => timeline.push({
+    date: [item.date, item.shift].filter(Boolean).join(" · "),
+    event: `${numberOrZero_(item.units)} uds fabricadas`
+  }));
+  if (order.status === MANUFACTURING_ORDERS.closedStatus) {
+    timeline.push({ date: order.updatedAt, event: "OF cerrada" });
+  }
+  return {
+    generatedAt: formatLotsDate_(new Date()),
+    status: order.status === MANUFACTURING_ORDERS.closedStatus
+      ? "CERRADO"
+      : order.producedQuantity > 0 ? "EN PRODUCCIÓN" : "PLANIFICADO",
+    order,
+    productions,
+    timeline
+  };
+}
+
 function createManufacturingOrder(input) {
   assertLotsWebAppAccess_();
   const data = validateManufacturingOrderInput_(input);
@@ -219,6 +250,7 @@ function createManufacturingOrder(input) {
     const now = new Date();
     const user = getManufacturingOrderUser_();
     const id = nextManufacturingOrderId_(sheets.orders, now.getFullYear());
+    const finishedLot = buildFinishedProductLotName_(data.sku, data.targetDate || now, id);
     sheets.orders.appendRow([
       id,
       data.client,
@@ -237,7 +269,8 @@ function createManufacturingOrder(input) {
       data.salesOrderNumber,
       data.salesOrderId,
       data.salesOrderLineId,
-      data.salesOrderQuantity
+      data.salesOrderQuantity,
+      finishedLot
     ]);
     return { ok: true, id };
   } finally {
@@ -264,8 +297,8 @@ function updateManufacturingOrder(orderId, input) {
       }
     }
     if (!rowNumber) throw new Error(`No encuentro la orden ${id}.`);
-    const original = sheets.orders.getRange(rowNumber, 1, 1, 18).getValues()[0];
-    sheets.orders.getRange(rowNumber, 1, 1, 18).setValues([[
+    const original = sheets.orders.getRange(rowNumber, 1, 1, 19).getValues()[0];
+    sheets.orders.getRange(rowNumber, 1, 1, 19).setValues([[
       id,
       data.client,
       data.sku,
@@ -283,7 +316,8 @@ function updateManufacturingOrder(orderId, input) {
       original[14] || data.salesOrderNumber,
       original[15] || data.salesOrderId,
       original[16] || data.salesOrderLineId,
-      original[17] || data.salesOrderQuantity
+      original[17] || data.salesOrderQuantity,
+      original[18] || buildFinishedProductLotName_(data.sku, data.targetDate || original[9], id)
     ]]);
     return { ok: true, id };
   } finally {
@@ -298,7 +332,8 @@ function ensureManufacturingOrderSheets_(ss) {
     "Nº OF", "Cliente", "SKU", "Producto", "Cantidad objetivo", "Color",
     "Fecha objetivo", "Estado", "Observaciones", "Creada", "Modificada",
     "Creada por", "Modificada por", "contactId Holded",
-    "Pedido venta Holded", "salesOrderId Holded", "salesOrderLineId Holded", "Cantidad pedido"
+    "Pedido venta Holded", "salesOrderId Holded", "salesOrderLineId Holded", "Cantidad pedido",
+    "Lote producto terminado"
   ];
   if (orders.getLastRow() === 0) {
     orders.getRange(1, 1, 1, orderHeaders.length).setValues([orderHeaders]).setFontWeight("bold");
@@ -361,7 +396,7 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       const peLot = getActiveManufacturingLotName_(activeLots, item.materialSku);
       const pigmentLot = getActiveManufacturingLotName_(activeLots, item.pigmentSku);
       const finishedLot = lotManagedFinishedSkus.has(normalizeKey_(sku))
-        ? buildFinishedProductLotName_(sku, date)
+        ? order.finishedLot || buildFinishedProductLotName_(sku, order.targetDate || date, order.id)
         : "";
       rowsToAppend.push([
         date,
@@ -402,12 +437,13 @@ function getActiveManufacturingLotName_(activeLots, sku) {
   return safeStr_(active.lotName);
 }
 
-function buildFinishedProductLotName_(sku, productionDate) {
+function buildFinishedProductLotName_(sku, productionDate, orderId) {
   const cleanSku = safeStr_(sku);
-  if (!cleanSku) return "";
+  const cleanOrder = safeStr_(orderId).replace(/^OF-\d{4}-/i, "OF");
+  if (!cleanSku || !cleanOrder) return "";
   const date = productionDate instanceof Date ? productionDate : new Date(productionDate);
   if (isNaN(date.getTime())) return "";
-  return cleanSku + "-" + Utilities.formatDate(date, Session.getScriptTimeZone(), "MMyyyy");
+  return cleanSku + "-" + Utilities.formatDate(date, Session.getScriptTimeZone(), "MMyyyy") + "-" + cleanOrder;
 }
 
 function readLotManagedFinishedSkus_(ss) {
@@ -484,6 +520,7 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
       salesOrderId: safeStr_(values[row][15]),
       salesOrderLineId: safeStr_(values[row][16]),
       salesOrderQuantity: numberOrZero_(values[row][17]),
+      finishedLot: safeStr_(values[row][18]),
       producedQuantity: produced,
       pendingQuantity: Math.max(0, target - produced),
       progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0

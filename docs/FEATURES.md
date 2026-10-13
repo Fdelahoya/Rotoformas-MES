@@ -92,6 +92,12 @@ La pestaña **Pedidos pendientes** consulta en Holded los pedidos de venta abier
 
 Antes de guardar, el servidor vuelve a leer el pedido en Holded. Cada línea solo puede originar una OF, lo que evita duplicados incluso si dos usuarios trabajan a la vez. La creación manual permanece disponible para fabricación para stock, pruebas y casos internos sin pedido de venta.
 
+### Lote terminado y ficha de trazabilidad
+
+Cada OF genera un único lote de producto terminado con el formato `SKU-MMYYYY-OFNNNN`. Todas las fabricaciones vinculadas a esa OF comparten el mismo lote, incluso si se realizan en varios turnos.
+
+La pestaña **Trazabilidad** permite consultar el lote o el número de OF y muestra producto, estado, cliente, pedido de Holded, cantidades, fechas, color y el detalle de cada fabricación con sus lotes de PE y pigmento. Una URL con el parámetro `?lote=` abre directamente la ficha y será el destino de los futuros códigos QR.
+
 ## Movimientos de stock con lotes
 
 - Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.

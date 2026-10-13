@@ -13,9 +13,11 @@ const LOTS_APP = {
 };
 
 /** Aplicación web incrustable en Google Sites. No ejecuta movimientos de stock. */
-function doGet() {
+function doGet(e) {
   assertLotsWebAppAccess_();
-  return HtmlService.createHtmlOutputFromFile("LotsWebAppPage")
+  const template = HtmlService.createTemplateFromFile("LotsWebAppPage");
+  template.initialTraceabilityReference = safeStr_(e && e.parameter && e.parameter.lote);
+  return template.evaluate()
     .setTitle("Rotoformas MES")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
