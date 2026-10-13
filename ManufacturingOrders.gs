@@ -13,6 +13,55 @@ const MANUFACTURING_ORDERS = {
   ]
 };
 
+/** Consulta temporal de solo lectura para validar pedidos de venta de Tecnospra. */
+function previewTecnospraSalesOrders() {
+  const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
+  if (!Array.isArray(documents)) {
+    throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
+  }
+  const normalize = value => safeStr_(value)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+  const result = documents
+    .filter(doc => normalize([
+      doc && doc.contactName,
+      doc && doc.contactCode,
+      doc && doc.desc,
+      doc && doc.notes
+    ].join(" ")).includes("TECNOSPRA"))
+    .slice(0, 10)
+    .map(doc => ({
+      id: safeStr_(doc.id),
+      number: safeStr_(doc.docNumber || doc.invoiceNum || doc.number),
+      contactId: safeStr_(doc.contactId),
+      contactName: safeStr_(doc.contactName),
+      date: doc.date || "",
+      dueDate: doc.dueDate || "",
+      status: safeStr_(doc.status),
+      approved: doc.approveDoc === true || doc.approved === true,
+      items: Array.isArray(doc.items) ? doc.items.map(item => ({
+        productId: safeStr_(item.productId),
+        sku: safeStr_(item.sku),
+        name: safeStr_(item.name || item.desc),
+        units: numberOrZero_(item.units || item.quantity),
+        kind: safeStr_(item.kind),
+        lotSku: safeStr_(item.lotSku)
+      })) : []
+    }));
+  console.log("TECNOSPRA_SALES_ORDERS " + JSON.stringify(result));
+  return result;
+}
+
+/** Lee el detalle de los dos pedidos más recientes encontrados en el preview. */
+function previewTecnospraSalesOrderDetails() {
+  const orders = previewTecnospraSalesOrders().slice(0, 2);
+  const details = orders.map(order =>
+    holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(order.id))
+  );
+  console.log("TECNOSPRA_SALES_ORDER_DETAILS " + JSON.stringify(details));
+  return details;
+}
+
 function getManufacturingOrdersData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
