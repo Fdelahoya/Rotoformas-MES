@@ -90,6 +90,20 @@ const MIGRATION_PRODUCTION_MP_SIMPLE = [
   { id: "69bd155067eda2cb10004393", sku: "PE RECICLADO", stock: 20133.1 },
   { id: "6a8d50caa517dca3180c5e4b", sku: "PIG301", stock: -360 }
 ];
+const MIGRATION_PRODUCTION_PREMIUM_SIMPLE = [
+  { id: "691f11768d2a6b25b40e113f", sku: "FILTRO 1B", stock: 18, tag: "MH" },
+  { id: "691f11768d2a6b25b40e1145", sku: "FILTRO 2B", stock: 3, tag: "MH" },
+  { id: "691f11768d2a6b25b40e1151", sku: "GUASCOR", stock: -5, tag: "MH" },
+  { id: "691f11778d2a6b25b40e11a5", sku: "TAPA 200", stock: -1, tag: "MH" },
+  { id: "691f11778d2a6b25b40e11ab", sku: "TAPA R", stock: 158, tag: "MH" },
+  { id: "691f11790eb5f3774200f71e", sku: "TOLVA 14M", stock: 0, tag: "SL" },
+  { id: "691f11790eb5f3774200f724", sku: "TOLVA 28M1S", stock: 0, tag: "SL" },
+  { id: "691f11790eb5f3774200f72a", sku: "TOLVA 28M2S", stock: 12, tag: "SL" },
+  { id: "691f11790eb5f3774200f730", sku: "TOLVA 300", stock: 13, tag: "SL" },
+  { id: "691f11790eb5f3774200f736", sku: "TOLVA 5M", stock: 0, tag: "SL" },
+  { id: "691f11790eb5f3774200f73c", sku: "TOLVA M", stock: 0, tag: "SL" },
+  { id: "6920235a5053084968026e95", sku: "CICLON PROSEM", stock: 352, tag: "SL" }
+];
 
 /**
  * Localiza PORTATAPAS por SKU exacto y muestra su JSON completo.
@@ -752,6 +766,16 @@ function migrateProductionMpSimpleToLots() {
   );
 }
 
+/** Convierte a lotes los 12 productos premium simples auditados (MH y SL). */
+function migrateProductionPremiumSimpleToLots() {
+  return migrationProductionMigrateSimpleBatch_(
+    MIGRATION_PRODUCTION_PREMIUM_SIMPLE,
+    "Premium simples MH/SL",
+    "HOLDED_PRODUCTION_PREMIUM_SIMPLE_RESULT",
+    ""
+  );
+}
+
 function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultProperty, requiredTag) {
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
@@ -763,8 +787,9 @@ function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultP
         source.kind !== "simple") {
       throw new Error("No coincide el producto simple autorizado: " + expected.sku + ".");
     }
-    if (tags.indexOf(requiredTag) === -1) {
-      throw new Error(expected.sku + " ya no tiene etiqueta " + requiredTag + ".");
+    const expectedTag = expected.tag || requiredTag;
+    if (!expectedTag || tags.indexOf(expectedTag) === -1) {
+      throw new Error(expected.sku + " ya no tiene etiqueta " + expectedTag + ".");
     }
     if (!migrationProductionNumbersEqual_(source.stock, expected.stock)) {
       throw new Error(expected.sku + " ya no tiene stock " + expected.stock + ".");
