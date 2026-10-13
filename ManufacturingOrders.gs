@@ -79,6 +79,114 @@ function getManufacturingOrdersData() {
   };
 }
 
+function getPremiumSalesOrderProposals() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const existingLineIds = readImportedSalesOrderLineIds_(sheets.orders);
+  const catalog = readManufacturingOrderCatalog_(ss);
+  const catalogBySku = {};
+  catalog.forEach(item => { catalogBySku[normalizeKey_(item.sku)] = item; });
+
+  const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
+  if (!Array.isArray(documents)) throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
+
+  const premiumTags = new Set(MANUFACTURING_ORDERS.premiumClients.map(item => item.tag));
+  const candidates = documents.filter(doc => {
+    if (Number(doc && doc.status) !== 0) return false;
+    const tags = (Array.isArray(doc && doc.tags) ? doc.tags : []).map(normalizeManufacturingTag_);
+    if (tags.some(tag => premiumTags.has(tag))) return true;
+    const contact = normalizeManufacturingSearchText_(doc && doc.contactName);
+    return MANUFACTURING_ORDERS.premiumClients.some(config =>
+      config.contactTerms.some(term => contact.includes(term))
+    );
+  }).slice(0, 50);
+
+  const proposals = [];
+  candidates.forEach(summary => {
+    const detail = holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(summary.id));
+    const orderTags = (Array.isArray(detail && detail.tags) ? detail.tags : []).map(normalizeManufacturingTag_);
+    const products = Array.isArray(detail && detail.products) ? detail.products : [];
+    products.forEach((line, index) => {
+      const lineId = safeStr_(line.line_id) || `${safeStr_(detail.id)}:${index}`;
+      const sku = safeStr_(line.sku);
+      const catalogItem = catalogBySku[normalizeKey_(sku)] || null;
+      const lineTags = (Array.isArray(line.tags) ? line.tags : []).map(normalizeManufacturingTag_);
+      const premiumTag = lineTags.concat(orderTags).find(tag => premiumTags.has(tag)) || "";
+      if (!premiumTag || !catalogItem || existingLineIds.has(lineId)) return;
+      proposals.push({
+        salesOrderId: safeStr_(detail.id),
+        salesOrderNumber: safeStr_(detail.docNumber || summary.docNumber),
+        salesOrderLineId: lineId,
+        clientId: safeStr_(detail.contact),
+        client: safeStr_(detail.contactName),
+        sku,
+        product: safeStr_(line.name || catalogItem.product),
+        quantity: numberOrZero_(line.units),
+        orderDate: formatManufacturingOrderEpochDate_(detail.date),
+        orderDateDisplay: formatManufacturingOrderEpochDate_(detail.date, "dd/MM/yyyy"),
+        requestedDate: detail.forecastDate || detail.deliverydate
+          ? formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate)
+          : "",
+        requestedDateDisplay: detail.forecastDate || detail.deliverydate
+          ? formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate, "dd/MM/yyyy")
+          : "",
+        description: safeStr_(line.desc),
+        premiumTag
+      });
+    });
+  });
+  return {
+    generatedAt: formatLotsDate_(new Date()),
+    clients: readPremiumManufacturingClients_(),
+    catalog,
+    proposals: proposals.sort((a, b) => b.salesOrderNumber.localeCompare(a.salesOrderNumber))
+  };
+}
+
+function createManufacturingOrderFromSalesOrderLine(input) {
+  const value = input || {};
+  const salesOrderId = safeStr_(value.salesOrderId);
+  const salesOrderLineId = safeStr_(value.salesOrderLineId);
+  if (!salesOrderId || !salesOrderLineId) throw new Error("Falta identificar el pedido o su línea.");
+
+  const detail = holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(salesOrderId));
+  if (!detail || Number(detail.status) !== 0) throw new Error("El pedido ya no está pendiente en Holded.");
+  const products = Array.isArray(detail.products) ? detail.products : [];
+  const line = products.find((item, index) =>
+    (safeStr_(item.line_id) || `${salesOrderId}:${index}`) === salesOrderLineId
+  );
+  if (!line) throw new Error("La línea ya no existe en el pedido de Holded.");
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  if (readImportedSalesOrderLineIds_(sheets.orders).has(salesOrderLineId)) {
+    throw new Error("Esta línea del pedido ya tiene una OF creada.");
+  }
+  const catalogItem = readManufacturingOrderCatalog_(ss)
+    .find(item => normalizeKey_(item.sku) === normalizeKey_(line.sku));
+  if (!catalogItem) throw new Error("El producto no está disponible como referencia premium con gestión por lotes.");
+
+  const notes = [
+    safeStr_(line.desc),
+    safeStr_(value.notes)
+  ].filter(Boolean).join(" · ");
+  return createManufacturingOrder({
+    client: safeStr_(detail.contactName),
+    clientId: safeStr_(detail.contact),
+    sku: safeStr_(line.sku),
+    product: safeStr_(line.name || catalogItem.product),
+    targetQuantity: numberOrZero_(line.units),
+    color: safeStr_(value.color),
+    targetDate: safeStr_(value.targetDate),
+    status: MANUFACTURING_ORDERS.openStatus,
+    notes,
+    salesOrderNumber: safeStr_(detail.docNumber),
+    salesOrderId,
+    salesOrderLineId,
+    salesOrderQuantity: numberOrZero_(line.units)
+  });
+}
+
 function getManufacturingOrderDetail(orderId) {
   const id = safeStr_(orderId);
   if (!id) throw new Error("No se ha indicado el número de OF.");
@@ -100,6 +208,9 @@ function createManufacturingOrder(input) {
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
+    if (data.salesOrderLineId && readImportedSalesOrderLineIds_(sheets.orders).has(data.salesOrderLineId)) {
+      throw new Error("Esta línea del pedido ya tiene una OF creada.");
+    }
     const now = new Date();
     const user = getManufacturingOrderUser_();
     const id = nextManufacturingOrderId_(sheets.orders, now.getFullYear());
@@ -117,7 +228,11 @@ function createManufacturingOrder(input) {
       now,
       user,
       user,
-      data.clientId
+      data.clientId,
+      data.salesOrderNumber,
+      data.salesOrderId,
+      data.salesOrderLineId,
+      data.salesOrderQuantity
     ]);
     return { ok: true, id };
   } finally {
@@ -143,8 +258,8 @@ function updateManufacturingOrder(orderId, input) {
       }
     }
     if (!rowNumber) throw new Error(`No encuentro la orden ${id}.`);
-    const original = sheets.orders.getRange(rowNumber, 1, 1, 14).getValues()[0];
-    sheets.orders.getRange(rowNumber, 1, 1, 14).setValues([[
+    const original = sheets.orders.getRange(rowNumber, 1, 1, 18).getValues()[0];
+    sheets.orders.getRange(rowNumber, 1, 1, 18).setValues([[
       id,
       data.client,
       data.sku,
@@ -158,7 +273,11 @@ function updateManufacturingOrder(orderId, input) {
       new Date(),
       original[11] || "",
       getManufacturingOrderUser_(),
-      data.clientId
+      data.clientId,
+      original[14] || data.salesOrderNumber,
+      original[15] || data.salesOrderId,
+      original[16] || data.salesOrderLineId,
+      original[17] || data.salesOrderQuantity
     ]]);
     return { ok: true, id };
   } finally {
@@ -172,7 +291,8 @@ function ensureManufacturingOrderSheets_(ss) {
   const orderHeaders = [
     "Nº OF", "Cliente", "SKU", "Producto", "Cantidad objetivo", "Color",
     "Fecha objetivo", "Estado", "Observaciones", "Creada", "Modificada",
-    "Creada por", "Modificada por", "contactId Holded"
+    "Creada por", "Modificada por", "contactId Holded",
+    "Pedido venta Holded", "salesOrderId Holded", "salesOrderLineId Holded", "Cantidad pedido"
   ];
   if (orders.getLastRow() === 0) {
     orders.getRange(1, 1, 1, orderHeaders.length).setValues([orderHeaders]).setFontWeight("bold");
@@ -354,6 +474,10 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
       createdBy: safeStr_(values[row][11]),
       updatedBy: safeStr_(values[row][12]),
       clientId: safeStr_(values[row][13]),
+      salesOrderNumber: safeStr_(values[row][14]),
+      salesOrderId: safeStr_(values[row][15]),
+      salesOrderLineId: safeStr_(values[row][16]),
+      salesOrderQuantity: numberOrZero_(values[row][17]),
       producedQuantity: produced,
       pendingQuantity: Math.max(0, target - produced),
       progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0
@@ -457,6 +581,27 @@ function normalizeManufacturingTag_(value) {
   return safeStr_(value).replace(/^#+/, "").toUpperCase();
 }
 
+function normalizeManufacturingSearchText_(value) {
+  return safeStr_(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+}
+
+function readImportedSalesOrderLineIds_(sheet) {
+  const out = new Set();
+  const values = sheet.getDataRange().getValues();
+  for (let row = 1; row < values.length; row++) {
+    const lineId = safeStr_(values[row][16]);
+    if (lineId) out.add(lineId);
+  }
+  return out;
+}
+
+function formatManufacturingOrderEpochDate_(value, pattern) {
+  const seconds = Number(value);
+  if (!isFinite(seconds) || seconds <= 0) return "";
+  return Utilities.formatDate(new Date(seconds * 1000), Session.getScriptTimeZone(), pattern || "yyyy-MM-dd");
+}
+
 function previewPremiumProductsWithoutLots() {
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) throw new Error("Holded no devolvió un catálogo válido de productos.");
@@ -504,6 +649,10 @@ function validateManufacturingOrderInput_(input) {
   const color = safeStr_(value.color);
   const notes = safeStr_(value.notes);
   const status = safeStr_(value.status).toUpperCase() || MANUFACTURING_ORDERS.openStatus;
+  const salesOrderNumber = safeStr_(value.salesOrderNumber);
+  const salesOrderId = safeStr_(value.salesOrderId);
+  const salesOrderLineId = safeStr_(value.salesOrderLineId);
+  const salesOrderQuantity = numberOrZero_(value.salesOrderQuantity);
   if (!client) throw new Error("El cliente es obligatorio.");
   if (!clientId) throw new Error("Selecciona un cliente premium de Holded.");
   const validClient = readPremiumManufacturingClients_()
@@ -523,7 +672,10 @@ function validateManufacturingOrderInput_(input) {
     if (!parts) throw new Error("La fecha objetivo no es válida.");
     targetDate = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
   }
-  return { client, clientId, sku, product, targetQuantity, color, targetDate, status, notes };
+  return {
+    client, clientId, sku, product, targetQuantity, color, targetDate, status, notes,
+    salesOrderNumber, salesOrderId, salesOrderLineId, salesOrderQuantity
+  };
 }
 
 function nextManufacturingOrderId_(sheet, year) {
