@@ -154,6 +154,7 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   const sourcePrefix = `RESUMEN|${safeStr_(dateText)}|${shift}|`;
   const activeLotsSheet = ss.getSheetByName(LOTS_APP.activeSheet);
   const activeLots = activeLotsSheet ? readActiveLots_(activeLotsSheet) : {};
+  const lotManagedFinishedSkus = readLotManagedFinishedSkus_(ss);
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
@@ -184,7 +185,9 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       if (!order) return;
       const peLot = getActiveManufacturingLotName_(activeLots, item.materialSku);
       const pigmentLot = getActiveManufacturingLotName_(activeLots, item.pigmentSku);
-      const finishedLot = buildFinishedProductLotName_(sku, date);
+      const finishedLot = lotManagedFinishedSkus.has(normalizeKey_(sku))
+        ? buildFinishedProductLotName_(sku, date)
+        : "";
       rowsToAppend.push([
         date,
         shift,
@@ -230,6 +233,25 @@ function buildFinishedProductLotName_(sku, productionDate) {
   const date = productionDate instanceof Date ? productionDate : new Date(productionDate);
   if (isNaN(date.getTime())) return "";
   return cleanSku + "-" + Utilities.formatDate(date, Session.getScriptTimeZone(), "MMyyyy");
+}
+
+function readLotManagedFinishedSkus_(ss) {
+  const sheet = ss.getSheetByName("Holded Raw");
+  if (!sheet) return new Set();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return new Set();
+  const skuIdx = getColIndex_(values[0], "^sku holded$");
+  const kindIdx = getColIndex_(values[0], "^kind$");
+  const typeIdx = getColIndex_(values[0], "^tipo");
+  if (skuIdx < 0 || kindIdx < 0) return new Set();
+  const out = new Set();
+  for (let row = 1; row < values.length; row++) {
+    if (normalizeKey_(values[row][kindIdx]) !== "LOTS") continue;
+    if (typeIdx >= 0 && normalizeKey_(values[row][typeIdx]) === "RM") continue;
+    const sku = normalizeKey_(values[row][skuIdx]);
+    if (sku) out.add(sku);
+  }
+  return out;
 }
 
 function removeManufacturingOrderLinksBySource_(sheet, sourcePrefix) {
