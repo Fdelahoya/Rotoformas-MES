@@ -70,7 +70,7 @@ La Web App **Rotoformas MES** incorpora el módulo **Órdenes de fabricación**,
 - cerrar o reabrir una orden;
 - visualizar cantidad objetivo, cantidad fabricada, pendiente y porcentaje de avance.
 
-El control de peso dispone además de una vista pública específica para la pantalla de planta (`?modo=pesaje`). Solo presenta las OF abiertas y registra el peso bruto de cada pieza, el operario y una observación. La planificación, los pedidos, los clientes, la edición de OF y la configuración de lotes permanecen en la aplicación privada.
+El control de peso dispone además de una vista pública específica para la pantalla de planta (`?modo=pesaje`). Solo presenta las OF abiertas y registra el peso bruto de cada pieza, el operario y una observación. El operario se selecciona de una lista cerrada y ordenada alfabéticamente: Álvaro, Carlos, Emilio, Llusif y Martha. La planificación, los pedidos, los clientes, la edición de OF y la configuración de lotes permanecen en la aplicación privada.
 
 Cada orden contiene un número anual correlativo (`OF-AAAA-NNNN`), cliente, SKU, producto, cantidad objetivo, color, fecha objetivo, estado y observaciones. El catálogo seleccionable procede de los productos terminados activos de `Holded Raw`.
 
