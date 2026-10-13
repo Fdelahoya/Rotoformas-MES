@@ -64,6 +64,8 @@ La Web App de producción se publica desde **Apps Script → Implementar → Ges
 
 La aplicación valida además una lista cerrada de usuarios autorizados: `fidel@rotoformas.com` y `bflorentin@rotoformas.com`.
 
+El puesto de pesaje de planta usa una segunda implementación de aplicación web con el parámetro `?modo=pesaje`. Esta implementación se ejecuta como el propietario y admite acceso sin iniciar sesión. La vista pública solo muestra OF abiertas y permite guardar peso, operario y observaciones; no expone la planificación ni la configuración del MES.
+
 URL de producción actual:
 
 `https://script.google.com/a/macros/rotoformas.com/s/AKfycbw1ferF8Eq8ukv9w7eGBnquYFtGSopEdUDIH_aHihE9UfzBppXiL4hPHdAhvl2ssmOavA/exec`

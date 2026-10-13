@@ -211,6 +211,37 @@ function getManufacturingOrderDetail(orderId) {
 
 function recordManufacturingPieceWeight(input) {
   assertLotsWebAppAccess_();
+  return recordManufacturingPieceWeight_(input, getManufacturingOrderUser_());
+}
+
+/** Vista pública y limitada para el puesto de pesaje de planta. */
+function getPlantWeightOrders() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const orders = readManufacturingOrders_(sheets.orders, sheets.production)
+    .filter(order => order.status === MANUFACTURING_ORDERS.openStatus)
+    .map(order => ({
+      id: order.id,
+      sku: order.sku,
+      product: order.product,
+      finishedLot: order.finishedLot,
+      targetQuantity: order.targetQuantity,
+      producedQuantity: order.producedQuantity,
+      theoreticalWeight: readManufacturingTheoreticalWeight_(ss, order.sku),
+      quality: getManufacturingQualityData_(sheets.quality, order)
+    }));
+  return { generatedAt: formatLotsDate_(new Date()), orders };
+}
+
+/** Registra un pesaje desde la pantalla pública de planta. */
+function recordPlantManufacturingPieceWeight(input) {
+  const data = input || {};
+  const operator = safeStr_(data.operator).replace(/[\r\n\t]/g, " ").slice(0, 80);
+  if (!operator) throw new Error("Indica el nombre o identificador del operario.");
+  return recordManufacturingPieceWeight_(data, operator);
+}
+
+function recordManufacturingPieceWeight_(input, actor) {
   const data = input || {};
   const orderId = safeStr_(data.orderId);
   const actualWeight = Number(String(data.actualWeight || "").replace(",", "."));
@@ -241,7 +272,7 @@ function recordManufacturingPieceWeight(input) {
     const deviationPercent = Math.abs(difference) / theoreticalWeight * 100;
     const result = classifyManufacturingWeight_(deviationPercent);
     const now = new Date();
-    const user = getManufacturingOrderUser_();
+    const user = safeStr_(actor) || "Pantalla producción";
     sheets.quality.appendRow([
       now,
       user,
