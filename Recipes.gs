@@ -101,9 +101,13 @@ function installOxDisairRejectedUnitsQuestion() {
       .setRequired(false);
   }
   ensureMesRecipesSheet_(spreadsheet);
-  SpreadsheetApp.getUi().alert(
-    exists
-      ? "La captura de rechazos ya estaba preparada."
-      : "Captura de rechazos añadida al formulario y receta OX Disair preparada."
-  );
+  const message = exists
+    ? "La captura de rechazos ya estaba preparada."
+    : "Captura de rechazos añadida al formulario y receta OX Disair preparada.";
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    console.log(message);
+  }
+  return { ok: true, questionCreated: !exists, message };
 }
