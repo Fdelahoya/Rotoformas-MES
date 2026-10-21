@@ -1,5 +1,11 @@
 # Funcionalidades
 
+## Pedidos pendientes para órdenes de fabricación
+
+- Un pedido pendiente de Holded se propone como OF cuando contiene un producto terminado activo con gestión por lotes.
+- La propuesta ya no depende de una lista de clientes ni de etiquetas comerciales.
+- Se siguen excluyendo materias primas, productos sin gestión por lotes, pedidos no pendientes y líneas que ya tienen una OF.
+
 ## F-002 - Sincronización de costes desde Holded
 
 **Estado:** implementada

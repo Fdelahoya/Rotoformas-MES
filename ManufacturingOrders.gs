@@ -95,29 +95,22 @@ function getPremiumSalesOrderProposals() {
   const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
   if (!Array.isArray(documents)) throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
 
-  const premiumTags = new Set(MANUFACTURING_ORDERS.premiumClients.map(item => item.tag));
-  const candidates = documents.filter(doc => {
-    if (Number(doc && doc.status) !== 0) return false;
-    const tags = (Array.isArray(doc && doc.tags) ? doc.tags : []).map(normalizeManufacturingTag_);
-    if (tags.some(tag => premiumTags.has(tag))) return true;
-    const contact = normalizeManufacturingSearchText_(doc && doc.contactName);
-    return MANUFACTURING_ORDERS.premiumClients.some(config =>
-      config.contactTerms.some(term => contact.includes(term))
-    );
-  }).slice(0, 50);
+  // La trazabilidad depende del producto, no del cliente: cualquier pedido
+  // pendiente con un producto terminado activo y gestionado por lotes puede
+  // originar una OF.
+  const candidates = documents
+    .filter(doc => Number(doc && doc.status) === 0)
+    .slice(0, 50);
 
   const proposals = [];
   candidates.forEach(summary => {
     const detail = holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(summary.id));
-    const orderTags = (Array.isArray(detail && detail.tags) ? detail.tags : []).map(normalizeManufacturingTag_);
     const products = Array.isArray(detail && detail.products) ? detail.products : [];
     products.forEach((line, index) => {
       const lineId = safeStr_(line.line_id) || `${safeStr_(detail.id)}:${index}`;
       const sku = safeStr_(line.sku);
       const catalogItem = catalogBySku[normalizeKey_(sku)] || null;
-      const lineTags = (Array.isArray(line.tags) ? line.tags : []).map(normalizeManufacturingTag_);
-      const premiumTag = lineTags.concat(orderTags).find(tag => premiumTags.has(tag)) || "";
-      if (!premiumTag || !catalogItem || existingLineIds.has(lineId)) return;
+      if (!catalogItem || existingLineIds.has(lineId)) return;
       proposals.push({
         salesOrderId: safeStr_(detail.id),
         salesOrderNumber: safeStr_(detail.docNumber || summary.docNumber),
@@ -135,8 +128,7 @@ function getPremiumSalesOrderProposals() {
         requestedDateDisplay: detail.forecastDate || detail.deliverydate
           ? formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate, "dd/MM/yyyy")
           : "",
-        description: safeStr_(line.desc),
-        premiumTag
+        description: safeStr_(line.desc)
       });
     });
   });
@@ -765,13 +757,12 @@ function readManufacturingOrderCatalog_(ss) {
     if (!raw || !raw.active || raw.type === "rm") return;
     seen.add(normalizeKey_(sku));
     const tags = (Array.isArray(item.tags) ? item.tags : []).map(normalizeManufacturingTag_);
-    const client = MANUFACTURING_ORDERS.premiumClients.find(config => tags.includes(config.tag));
-    if (!client) return;
+    const client = MANUFACTURING_ORDERS.premiumClients.find(config => tags.includes(config.tag)) || null;
     out.push({
       sku,
       product: safeStr_(item.name || raw.product),
       productId: safeStr_(item.id),
-      clientKey: client.key
+      clientKey: client ? client.key : ""
     });
   });
   return out.sort((a, b) => a.sku.localeCompare(b.sku));
@@ -882,9 +873,12 @@ function validateManufacturingOrderInput_(input) {
   const salesOrderQuantity = numberOrZero_(value.salesOrderQuantity);
   if (!client) throw new Error("El cliente es obligatorio.");
   if (!clientId) throw new Error("Selecciona un cliente de Holded.");
-  const validClient = readPremiumManufacturingClients_()
-    .some(item => item.id === clientId && normalizeKey_(item.name) === normalizeKey_(client));
-  if (!validClient) throw new Error("El cliente seleccionado ya no está incluido en la planificación de fabricación.");
+  const comesFromSalesOrder = !!salesOrderId && !!salesOrderLineId;
+  if (!comesFromSalesOrder) {
+    const validClient = readPremiumManufacturingClients_()
+      .some(item => item.id === clientId && normalizeKey_(item.name) === normalizeKey_(client));
+    if (!validClient) throw new Error("El cliente seleccionado ya no está incluido en la planificación de fabricación.");
+  }
   if (!sku) throw new Error("El SKU es obligatorio.");
   if (!product) throw new Error("El producto es obligatorio.");
   if (!isFinite(targetQuantity) || targetQuantity <= 0) {
