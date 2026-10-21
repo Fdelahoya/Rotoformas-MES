@@ -101,6 +101,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Rotoformas")
     .addItem("Generar resumen del día (con márgenes)", "generarResumenDelDia")
+    .addItem("Preparar captura de rechazos OX Disair", "installOxDisairRejectedUnitsQuestion")
     .addSeparator()
     .addSubMenu(
       SpreadsheetApp.getUi().createMenu("Holded")
@@ -172,18 +173,27 @@ function generarResumenDelDia() {
   });
   const fila = candidatas[0];
 
-  // SKU | Uds
-  const pares = [];
+  // SKU | Uds conformes | Uds rechazadas. La columna de rechazo es opcional
+  // y se identifica, por ejemplo, como "OX DISAIR BASIC [RECHAZADAS]".
+  const produccionPorSku = {};
   for (let i = 2; i < headers.length; i++) {
-    const header = String(headers[i] || "").trim();
+    const parsedHeader = parseProductionHeader_(headers[i]);
     const val = fila[i];
-    if (header && val !== "" && val != null) {
+    if (parsedHeader && val !== "" && val != null) {
       const uds = toNumber_(val);
       if (!isNaN(uds) && uds !== 0) {
-        pares.push({ producto: header, uds });
+        const key = normalizeKey_(parsedHeader.sku);
+        if (!produccionPorSku[key]) {
+          produccionPorSku[key] = { producto: parsedHeader.sku, uds: 0, rechazadas: 0 };
+        }
+        if (parsedHeader.rejected) produccionPorSku[key].rechazadas += uds;
+        else produccionPorSku[key].uds += uds;
       }
     }
   }
+  const pares = Object.keys(produccionPorSku)
+    .map(key => produccionPorSku[key])
+    .filter(item => item.uds > 0 || item.rechazadas > 0);
 
   if (pares.length === 0) {
     dst.getRange(CONFIG.outputStartCell).setValue("⚠️ No hay productos con unidades > 0 para esa fecha/turno.");
@@ -193,6 +203,7 @@ function generarResumenDelDia() {
   const costes = readCostParameters_(ss, CONFIG.productMasterSheet);
   const master = readHoldedRawMaster_(ss, "Holded Raw");
   const recycledSkus = readRecycledSkuList_(ss, CONFIG.productMasterSheet);
+  const recipes = readMesRecipes_(ss);
 
   const totalGas = costes.turnoGas || 0;
   const totalLuz = costes.turnoLuz || 0;
@@ -216,11 +227,14 @@ const filasCalc = pares.map(p => {
   const precioVenta = numberOrZero_(meta.precio);
   const skuOriginal = safeStr_(p.producto);
   const skuKey = normalizeKey_(skuOriginal);
+  const recipe = recipes[skuKey] || [];
+  const udsRechazadas = Math.max(0, numberOrZero_(p.rechazadas));
+  const udsMoldeadas = Math.max(0, numberOrZero_(p.uds)) + udsRechazadas;
 
   const esReciclado = recycledSkus.has(skuKey);
   const esMasa = /-M(\s|$)/.test(skuOriginal);
 
-  const materialSku = esReciclado
+  let materialSku = esReciclado
     ? "PE RECICLADO"
     : esMasa
       ? "PE MASA"
@@ -229,6 +243,10 @@ const filasCalc = pares.map(p => {
   let pigmentSku = "";
   if (skuOriginal === "PORTATAPAS") pigmentSku = "PIG300";
   if (skuOriginal === "PORTATAPAS OVAL2000") pigmentSku = "PIG301";
+  const recipePe = recipe.find(component => /^PE\s/.test(normalizeKey_(component.componentSku)));
+  const recipePigment = recipe.find(component => /^PIG/.test(normalizeKey_(component.componentSku)));
+  if (recipePe) materialSku = recipePe.componentSku;
+  if (recipePigment) pigmentSku = recipePigment.componentSku;
 
   const precioPE = esReciclado
     ? numberOrZero_(costes.peReciclado)
@@ -236,7 +254,9 @@ const filasCalc = pares.map(p => {
       ? numberOrZero_(costes.peMasa)
       : numberOrZero_(costes.peGlobal);
 
-  const kgTotal = peso * p.uds;
+  const kgTotal = recipePe
+    ? recipePe.quantity * udsMoldeadas
+    : peso * udsMoldeadas;
   kgTotalTurno += kgTotal;
 
   const ingresos = precioVenta * p.uds;
@@ -245,6 +265,8 @@ const filasCalc = pares.map(p => {
   return {
     producto: p.producto,
     uds: p.uds,
+    udsRechazadas,
+    udsMoldeadas,
     pesoKgUd: peso,
     kgTotal,
     precioVenta,
@@ -252,7 +274,8 @@ const filasCalc = pares.map(p => {
     precioPE,
     costeMaterial,
     materialSku,
-    pigmentSku
+    pigmentSku,
+    recipe
   };
 });
 
@@ -266,7 +289,7 @@ const filasCalc = pares.map(p => {
   });
 
   const headerOut = [
-    "SKU", "Uds", "Peso (kg/u)", "Kg totales",
+    "SKU", "Uds", "Uds rechazadas", "Uds moldeadas", "Peso (kg/u)", "Kg totales",
     "Precio venta (€)", "Ingresos (€)",
     "PE €/kg", "Coste material (€)",
     "Indirectos prorr. (€)", "Coste total (€)",
@@ -275,7 +298,7 @@ const filasCalc = pares.map(p => {
   ];
 
   const rowsOut = filasCalc.map(r => [
-    r.producto, r.uds, r.pesoKgUd, r.kgTotal,
+    r.producto, r.uds, r.udsRechazadas, r.udsMoldeadas, r.pesoKgUd, r.kgTotal,
     r.precioVenta, r.ingresos,
     r.precioPE, r.costeMaterial,
     r.costeIndirecto, r.costeTotal,
@@ -401,10 +424,15 @@ function writeHistoricoConCalculos_(ss, filasCalc, fechaStr, turnoStr, totalGas,
     "PE €/kg", "Coste material (€)",
     "Indirectos prorr. (€)", "Coste total (€)",
     "Margen (€)", "Margen (%)", "Margen unit (€)",
-    "Gas turno (€)", "Luz turno (€)", "MOD turno (€)", "Kg totales turno"
+    "Gas turno (€)", "Luz turno (€)", "MOD turno (€)", "Kg totales turno",
+    "Uds rechazadas", "Uds moldeadas"
   ];
 
-  if (hist.getLastRow() === 0) hist.appendRow(header);
+  if (hist.getLastRow() === 0) {
+    hist.appendRow(header);
+  } else {
+    hist.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight("bold");
+  }
 
   if (CONFIG.historicoDedup) {
     const rng = hist.getDataRange().getValues();
@@ -423,7 +451,7 @@ function writeHistoricoConCalculos_(ss, filasCalc, fechaStr, turnoStr, totalGas,
     r.precioPE, r.costeMaterial,
     r.costeIndirecto, r.costeTotal,
     r.margen, r.margenPct, r.margenUnit,
-    totalGas, totalLuz, totalMOD, kgTotalTurno
+    totalGas, totalLuz, totalMOD, kgTotalTurno, r.udsRechazadas, r.udsMoldeadas
   ]);
 
   const totalIngresos = filasCalc.reduce((s, r) => s + (r.ingresos || 0), 0);
@@ -439,7 +467,7 @@ function writeHistoricoConCalculos_(ss, filasCalc, fechaStr, turnoStr, totalGas,
     "", totalCosteMat,
     totalIndir, totalCoste,
     totalMargen, totalMargenPct, "",
-    totalGas, totalLuz, totalMOD, kgTotalTurno
+    totalGas, totalLuz, totalMOD, kgTotalTurno, "", ""
   ];
 
   const startRow = hist.getLastRow() + 1;

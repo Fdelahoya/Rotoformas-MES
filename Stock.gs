@@ -33,6 +33,7 @@ function buildStockMovementsFromResumen_() {
   if (!holded) throw new Error("No existe la hoja 'Holded Raw'.");
 
   const recycledSkus = readRecycledSkuList_(ss, CONFIG.productMasterSheet);
+  const recipes = readMesRecipes_(ss);
 
   const holdedData = holded.getDataRange().getValues();
   if (holdedData.length < 2) throw new Error("Holded Raw no tiene datos.");
@@ -65,7 +66,17 @@ function buildStockMovementsFromResumen_() {
   const lastRow = resumen.getLastRow();
   if (lastRow < startRow) throw new Error("Resumen no tiene filas de producto.");
 
-  const data = resumen.getRange(startRow, 1, lastRow - startRow + 1, 4).getValues();
+  const lastColumn = resumen.getLastColumn();
+  const headers = resumen.getRange(startRow - 1, 1, 1, lastColumn).getValues()[0];
+  const skuIdx = getColIndex_(headers, "^sku$");
+  const unitsIdx = getColIndex_(headers, "^uds$");
+  const rejectedIdx = getColIndex_(headers, "^uds rechazadas$");
+  const moldedIdx = getColIndex_(headers, "^uds moldeadas$");
+  const kgIdx = getColIndex_(headers, "^kg totales$");
+  if ([skuIdx, unitsIdx, kgIdx].some(index => index < 0)) {
+    throw new Error("No localizo SKU, Uds y Kg totales en la hoja 'Resumen'.");
+  }
+  const data = resumen.getRange(startRow, 1, lastRow - startRow + 1, lastColumn).getValues();
 
   const movimientos = [];
   let peNaturalKg = 0;
@@ -74,19 +85,22 @@ function buildStockMovementsFromResumen_() {
   let insertoV4Uds = 0;
   let pigmento301Kg = 0;
   let pigmento300Kg = 0;
+  const recipeConsumptions = {};
 
   for (let i = 0; i < data.length; i++) {
-    const sku = safeStr_(data[i][0]);
-    const uds = numberOrZero_(data[i][1]);
-    const kgTotales = numberOrZero_(data[i][3]);
+    const sku = safeStr_(data[i][skuIdx]);
+    const uds = numberOrZero_(data[i][unitsIdx]);
+    const rejected = rejectedIdx >= 0 ? numberOrZero_(data[i][rejectedIdx]) : 0;
+    const molded = moldedIdx >= 0 ? numberOrZero_(data[i][moldedIdx]) : uds + rejected;
+    const kgTotales = numberOrZero_(data[i][kgIdx]);
 
     if (!sku) continue;
     if (sku === "TOTAL TURNO" || sku === "__TOTAL_TURNO__") break;
-    if (uds === 0) continue;
+    if (uds === 0 && molded === 0) continue;
 
     const info = holdedIdx[normalizeKey_(sku)];
 
-    if (!info) {
+    if (uds > 0 && !info) {
       movimientos.push({
         sku,
         producto: "",
@@ -99,7 +113,7 @@ function buildStockMovementsFromResumen_() {
         sentido: "+",
         estado: "SKU no encontrado en Holded Raw"
       });
-    } else {
+    } else if (uds > 0) {
       movimientos.push({
         sku: info.sku,
         producto: info.nombre,
@@ -115,6 +129,21 @@ function buildStockMovementsFromResumen_() {
     }
 
     const skuKey = normalizeKey_(sku);
+    const recipe = recipes[skuKey] || [];
+    if (recipe.length) {
+      recipe.forEach(component => {
+        const componentKey = normalizeKey_(component.componentSku);
+        if (!recipeConsumptions[componentKey]) {
+          recipeConsumptions[componentKey] = {
+            sku: component.componentSku,
+            unit: component.unit,
+            quantity: 0
+          };
+        }
+        recipeConsumptions[componentKey].quantity += component.quantity * molded;
+      });
+      continue;
+    }
     const esReciclado = recycledSkus.has(skuKey);
     const esMasa = /-M(\s|$)/.test(sku);
 
@@ -239,6 +268,24 @@ function buildStockMovementsFromResumen_() {
       estado: info ? "OK" : "SKU no encontrado en Holded Raw"
     });
   }
+
+  Object.keys(recipeConsumptions).forEach(key => {
+    const component = recipeConsumptions[key];
+    if (component.quantity <= 0) return;
+    const info = holdedIdx[key];
+    movimientos.push({
+      sku: component.sku,
+      producto: info ? info.nombre : "",
+      productId: info ? info.productId : "",
+      parentId: info ? info.parentId : "",
+      kind: info ? info.kind : "",
+      tipo: "RM",
+      unidad: component.unit,
+      movimiento: Math.round((component.quantity + Number.EPSILON) * 10000) / 10000,
+      sentido: "-",
+      estado: info ? "OK" : "SKU no encontrado en Holded Raw"
+    });
+  });
 
   return movimientos;
 }

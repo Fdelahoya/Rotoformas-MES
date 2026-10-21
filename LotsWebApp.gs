@@ -8,6 +8,7 @@ const LOTS_APP = {
     "PE RECICLADO",
     "PIG300",
     "PIG301",
+    "PIG RTF073",
     "INSERTO V4"
   ]
 };

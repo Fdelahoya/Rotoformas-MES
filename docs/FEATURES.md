@@ -121,3 +121,20 @@ Una medición no conforme genera una alerta roja muy visible para apartar la pie
 - Los productos sin gestión por lotes mantienen el flujo anterior.
 - Los movimientos ya registrados como correctos para la misma fecha, turno, SKU y cantidad se omiten al reintentar, evitando duplicados.
 - `Holded Log` registra el lote, el origen de la selección y una clave única del movimiento.
+
+## F-007 - Recetas MES y unidades rechazadas
+
+**Estado:** implementada
+
+Las composiciones de producto se mantienen en la hoja `Recetas MES`, con una fila por componente. La receta inicial de `OX DISAIR BASIC` consume por cada pieza moldeada:
+
+- 63 uds de `INSERTO ALU M4`;
+- 4 uds de `INSERTO ALU M10`;
+- 8,8 kg de `PE NATURAL`;
+- 0,044 kg de `PIG RTF073`.
+
+El formulario puede registrar las piezas rechazadas en la pregunta `OX DISAIR BASIC [RECHAZADAS]`. El resumen diferencia unidades conformes, rechazadas y moldeadas. Los consumos de todos los componentes se calculan sobre las unidades moldeadas; el stock de producto terminado y el avance de la OF aumentan únicamente con las unidades conformes.
+
+Si todavía no existe la pregunta, se instala una sola vez mediante **Rotoformas → Preparar captura de rechazos OX Disair**. La misma acción crea y precarga `Recetas MES` sin duplicar filas existentes.
+
+`PE NATURAL` y `PIG RTF073` utilizan el lote activo configurado en el MES. Los dos insertos se descuentan como stock normal, sin trazabilidad por lote, conforme al alcance acordado.

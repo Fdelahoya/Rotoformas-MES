@@ -451,7 +451,7 @@ function ensureManufacturingOrderSheets_(ss) {
   const productionHeaders = [
     "Fecha", "Turno", "Nº OF", "SKU", "Uds", "Peso real",
     "Lote PE", "Lote pigmento", "Lote producto terminado",
-    "Clave origen", "Vinculada"
+    "Clave origen", "Vinculada", "Uds rechazadas", "Uds moldeadas"
   ];
   if (production.getLastRow() === 0) {
     production.getRange(1, 1, 1, productionHeaders.length).setValues([productionHeaders]).setFontWeight("bold");
@@ -563,7 +563,9 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
     (productionRows || []).forEach(item => {
       const sku = safeStr_(item.producto || item.sku);
       const units = numberOrZero_(item.uds || item.units);
-      if (!sku || units <= 0) return;
+      const rejectedUnits = numberOrZero_(item.udsRechazadas || item.rejectedUnits);
+      const moldedUnits = numberOrZero_(item.udsMoldeadas || item.moldedUnits) || units + rejectedUnits;
+      if (!sku || (units <= 0 && moldedUnits <= 0)) return;
       const candidates = ordersBySku[normalizeKey_(sku)] || [];
       const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
@@ -584,7 +586,9 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
         pigmentLot,
         finishedLot,
         sourcePrefix + normalizeKey_(sku),
-        now
+        now,
+        rejectedUnits,
+        moldedUnits
       ]);
       order.producedQuantity += units;
       order.pendingQuantity = Math.max(0, order.targetQuantity - order.producedQuantity);
