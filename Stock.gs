@@ -34,6 +34,7 @@ function buildStockMovementsFromResumen_() {
 
   const recycledSkus = readRecycledSkuList_(ss, CONFIG.productMasterSheet);
   const recipes = readMesRecipes_(ss);
+  const finishedLotsBySku = readFinishedLotsForCurrentResumen_(ss);
 
   const holdedData = holded.getDataRange().getValues();
   if (holdedData.length < 2) throw new Error("Holded Raw no tiene datos.");
@@ -114,6 +115,7 @@ function buildStockMovementsFromResumen_() {
         estado: "SKU no encontrado en Holded Raw"
       });
     } else if (uds > 0) {
+      const finishedLotLink = finishedLotsBySku[normalizeKey_(info.sku)] || null;
       movimientos.push({
         sku: info.sku,
         producto: info.nombre,
@@ -124,7 +126,9 @@ function buildStockMovementsFromResumen_() {
         unidad: "ud",
         movimiento: uds,
         sentido: "+",
-        estado: "OK"
+        estado: finishedLotLink && finishedLotLink.error ? finishedLotLink.error : "OK",
+        finishedLot: finishedLotLink ? finishedLotLink.lotName : "",
+        manufacturingOrderId: finishedLotLink ? finishedLotLink.orderId : ""
       });
     }
 
@@ -308,6 +312,8 @@ function previewStockMovements() {
     "Unidad",
     "Sentido",
     "Movimiento",
+    "Lote producto terminado",
+    "Nº OF",
     "Estado"
   ];
 
@@ -321,6 +327,8 @@ function previewStockMovements() {
     m.unidad,
     m.sentido,
     m.movimiento,
+    m.finishedLot || "",
+    m.manufacturingOrderId || "",
     m.estado
   ]);
 
@@ -359,7 +367,7 @@ function applyStockMovements() {
       ? currentProduct.id
       : (esVariante ? m.parentId : m.productId);
     const lotResolution = isLotManaged
-      ? resolveStockLot_(m.sku, currentProduct, activeLots)
+      ? resolveStockLotForMovement_(m, currentProduct, activeLots)
       : { lot: null, source: "SIN LOTES" };
     const bodyProductId = isLotManaged && lotResolution.lot ? lotResolution.lot.id : m.productId;
     const delta = m.sentido === "+" ? m.movimiento : -m.movimiento;
@@ -371,7 +379,7 @@ function applyStockMovements() {
         urlProductId,
         bodyProductId,
         lotId: lotResolution.lot ? lotResolution.lot.id : "",
-        lotName: lotResolution.lot ? safeStr_(lotResolution.lot.sku) : "",
+        lotName: lotResolution.lot ? getHoldedStockLotName_(lotResolution.lot) : "",
         lotSource: lotResolution.source,
         lotError: lotResolution.error || "",
         delta: 0,
@@ -520,6 +528,69 @@ function resolveStockLot_(sku, product, activeLots) {
     return { lot: null, source: "", error: `Hay más de un lote llamado '${sku}' en Holded; selecciona un lote activo.` };
   }
   return { lot: null, source: "", error: `No hay lote activo válido ni un lote llamado '${sku}' en Holded.` };
+}
+
+function resolveStockLotForMovement_(movement, product, activeLots) {
+  const requestedLot = safeStr_(movement && movement.finishedLot);
+  if (!requestedLot) return resolveStockLot_(movement.sku, product, activeLots);
+
+  const requestedKey = normalizeKey_(requestedLot);
+  const matches = (Array.isArray(product.lots) ? product.lots : []).filter(lot =>
+    lot && normalizeKey_(getHoldedStockLotName_(lot)) === requestedKey
+  );
+  if (matches.length === 1) return { lot: matches[0], source: "LOTE OF" };
+  if (matches.length > 1) {
+    return { lot: null, source: "LOTE OF", error: `Hay más de un lote '${requestedLot}' en Holded.` };
+  }
+  return {
+    lot: null,
+    source: "LOTE OF",
+    error: `La OF ${safeStr_(movement.manufacturingOrderId)} exige el lote '${requestedLot}', pero no existe en Holded.`
+  };
+}
+
+function getHoldedStockLotName_(lot) {
+  return safeStr_(lot && (lot.lot_number || lot.sku || lot.name));
+}
+
+function readFinishedLotsForCurrentResumen_(ss) {
+  const info = getResumenFechaTurno_();
+  const sheet = ss.getSheetByName(MANUFACTURING_ORDERS.productionSheet);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(normalizeKey_);
+  const dateIdx = headers.indexOf("fecha");
+  const shiftIdx = headers.indexOf("turno");
+  const orderIdx = headers.indexOf("nº of");
+  const skuIdx = headers.indexOf("sku");
+  const lotIdx = headers.indexOf("lote producto terminado");
+  if ([dateIdx, shiftIdx, orderIdx, skuIdx, lotIdx].some(index => index < 0)) return {};
+
+  const out = {};
+  for (let row = 1; row < values.length; row++) {
+    if (normalizarSoloFechaString(values[row][dateIdx]) !== info.fechaStr) continue;
+    if (normalizeKey_(values[row][shiftIdx]) !== normalizeKey_(info.turno)) continue;
+    const sku = safeStr_(values[row][skuIdx]);
+    const lotName = safeStr_(values[row][lotIdx]);
+    if (!sku || !lotName) continue;
+    const key = normalizeKey_(sku);
+    const current = out[key];
+    if (current && normalizeKey_(current.lotName) !== normalizeKey_(lotName)) {
+      out[key] = {
+        lotName: "",
+        orderId: "",
+        error: `Hay más de una OF/lote terminado para ${sku} en el mismo turno.`
+      };
+      continue;
+    }
+    out[key] = {
+      lotName,
+      orderId: safeStr_(values[row][orderIdx]),
+      error: ""
+    };
+  }
+  return out;
 }
 
 function buildStockMovementKey_(info, sku, delta) {

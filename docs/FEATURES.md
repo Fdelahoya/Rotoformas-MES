@@ -129,6 +129,7 @@ Una medición no conforme genera una alerta roja muy visible para apartar la pie
 ## Movimientos de stock con lotes
 
 - Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.
+- Cuando una fabricación está vinculada a una OF, el movimiento positivo del producto terminado exige el lote exacto guardado en esa OF. No se permite sustituirlo por el lote genérico del SKU.
 - Prioridad de selección: lote activo declarado en el MES; si no existe o dejó de ser válido, lote de Holded cuyo nombre coincide exactamente con el SKU.
 - Los productos sin gestión por lotes mantienen el flujo anterior.
 - Los movimientos ya registrados como correctos para la misma fecha, turno, SKU y cantidad se omiten al reintentar, evitando duplicados.
