@@ -88,6 +88,43 @@ function previewOxDisairFinishedLot() {
   return previewFinishedProductLotCreation_("OF-2026-0002");
 }
 
+/** Crea en Holded el lote terminado de la primera OF de OX y lo verifica. */
+function createOxDisairFinishedLot() {
+  return createFinishedProductLot_("OF-2026-0002");
+}
+
+function createFinishedProductLot_(orderId) {
+  const preview = previewFinishedProductLotCreation_(orderId);
+  if (preview.action === "NO_CAMBIAR") return preview;
+
+  const updated = holdedV2Request_("put", "/products/" + encodeURIComponent(preview.productId), preview.payload);
+  let verifiedLot = null;
+  for (let attempt = 1; attempt <= 4 && !verifiedLot; attempt++) {
+    if (attempt > 1) Utilities.sleep(800);
+    const product = holdedV2Request_("get", "/products/" + encodeURIComponent(preview.productId));
+    verifiedLot = (Array.isArray(product.variants) ? product.variants : []).find(variant =>
+      normalizeKey_(variant && variant.lot_number) === normalizeKey_(preview.finishedLot) ||
+      normalizeKey_(variant && variant.sku) === normalizeKey_(preview.finishedLot)
+    ) || null;
+  }
+  if (!verifiedLot) {
+    throw new Error("Holded aceptó la actualización, pero no devuelve el lote " + preview.finishedLot + ".");
+  }
+
+  const result = {
+    ok: true,
+    action: "LOTE_CREADO",
+    orderId: preview.orderId,
+    salesOrderNumber: preview.salesOrderNumber,
+    productId: preview.productId,
+    finishedLot: preview.finishedLot,
+    lot: verifiedLot,
+    updateResponse: updated
+  };
+  console.log("FINISHED_LOT_CREATED " + JSON.stringify(result));
+  return result;
+}
+
 /**
  * Construye el reemplazo completo exigido por PUT /api/v2/products/{id} para
  * añadir el lote terminado de una OF. Solo consulta y registra el borrador.

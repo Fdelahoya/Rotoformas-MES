@@ -8,6 +8,8 @@
 
 El lote terminado propuesto por la OF puede auditarse con `previewOxDisairFinishedLot()`. La función consulta el producto real mediante API v2 y construye el reemplazo completo necesario para añadir el lote con stock cero, pero no envía ninguna escritura a Holded.
 
+Tras validar el borrador, `createOxDisairFinishedLot()` crea de forma idempotente el lote de `OF-2026-0002` con stock cero y verifica su existencia mediante una nueva lectura de Holded.
+
 ## F-002 - Sincronización de costes desde Holded
 
 **Estado:** implementada
