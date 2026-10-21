@@ -93,6 +93,12 @@ function createOxDisairFinishedLot() {
   return createFinishedProductLot_("OF-2026-0002");
 }
 
+/** Reintento seguro para cualquier OF ya creada; nunca duplica el lote. */
+function ensureManufacturingOrderFinishedLot(orderId) {
+  assertLotsWebAppAccess_();
+  return createFinishedProductLot_(orderId);
+}
+
 function createFinishedProductLot_(orderId) {
   const preview = previewFinishedProductLotCreation_(orderId);
   if (preview.action === "NO_CAMBIAR") return preview;
@@ -491,6 +497,8 @@ function createManufacturingOrder(input) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const lock = LockService.getDocumentLock();
+  let id = "";
+  let finishedLot = "";
   lock.waitLock(15000);
   try {
     if (data.salesOrderLineId && readImportedSalesOrderLineIds_(sheets.orders).has(data.salesOrderLineId)) {
@@ -498,8 +506,8 @@ function createManufacturingOrder(input) {
     }
     const now = new Date();
     const user = getManufacturingOrderUser_();
-    const id = nextManufacturingOrderId_(sheets.orders, now.getFullYear());
-    const finishedLot = buildFinishedProductLotName_(data.sku, data.targetDate || now, id);
+    id = nextManufacturingOrderId_(sheets.orders, now.getFullYear());
+    finishedLot = buildFinishedProductLotName_(data.sku, data.targetDate || now, id);
     sheets.orders.appendRow([
       id,
       data.client,
@@ -521,9 +529,29 @@ function createManufacturingOrder(input) {
       data.salesOrderQuantity,
       finishedLot
     ]);
-    return { ok: true, id };
   } finally {
     lock.releaseLock();
+  }
+
+  try {
+    const lotResult = createFinishedProductLot_(id);
+    return {
+      ok: true,
+      id,
+      finishedLot,
+      lotCreated: true,
+      lotAction: lotResult.action
+    };
+  } catch (error) {
+    const lotError = error && error.message ? error.message : String(error);
+    console.error("FINISHED_LOT_AUTO_CREATE_ERROR " + JSON.stringify({ id, finishedLot, lotError }));
+    return {
+      ok: true,
+      id,
+      finishedLot,
+      lotCreated: false,
+      lotError
+    };
   }
 }
 

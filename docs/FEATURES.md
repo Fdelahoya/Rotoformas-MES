@@ -10,6 +10,8 @@ El lote terminado propuesto por la OF puede auditarse con `previewOxDisairFinish
 
 Tras validar el borrador, `createOxDisairFinishedLot()` crea de forma idempotente el lote de `OF-2026-0002` con stock cero y verifica su existencia mediante una nueva lectura de Holded.
 
+Al crear una OF nueva, el sistema crea y verifica automáticamente su lote de producto terminado en Holded. La OF no se pierde si Holded falla: la interfaz muestra el error y `ensureManufacturingOrderFinishedLot(orderId)` permite reintentarlo de forma segura, sin duplicados.
+
 ## F-002 - Sincronización de costes desde Holded
 
 **Estado:** implementada
