@@ -15,6 +15,8 @@ const MANUFACTURING_ORDERS = {
     { key: "STK", tag: "STK", contactTerms: ["SOLTEKA"] }
   ]
 };
+const MANUFACTURING_CONTACTS_CACHE_PROPERTY = "MANUFACTURING_CONTACTS_CACHE";
+const MANUFACTURING_CATALOG_CACHE_PROPERTY = "MANUFACTURING_CATALOG_CACHE";
 
 /** Consulta temporal de solo lectura para validar pedidos de venta de Tecnospra. */
 function previewTecnospraSalesOrders() {
@@ -73,7 +75,7 @@ function getManufacturingOrdersData() {
   return {
     generatedAt: formatLotsDate_(new Date()),
     orders,
-    clients: readPremiumManufacturingClients_(),
+    clients: readPremiumManufacturingClients_(orders),
     catalog: readManufacturingOrderCatalog_(ss),
     summary: {
       open: orders.filter(order => order.status === MANUFACTURING_ORDERS.openStatus).length,
@@ -906,8 +908,22 @@ function readProductionsForOrder_(sheet, orderId) {
 }
 
 function readManufacturingOrderCatalog_(ss) {
-  const liveProducts = holdedRequest_("get", "/products");
-  if (!Array.isArray(liveProducts)) throw new Error("Holded no devolvió un catálogo válido de productos.");
+  let liveProducts = null;
+  try {
+    liveProducts = holdedRequest_("get", "/products");
+    if (!Array.isArray(liveProducts)) throw new Error("Holded no devolvió un catálogo válido de productos.");
+  } catch (error) {
+    console.warn("No se pudo refrescar el catálogo de productos de Holded: " + error.message);
+    try {
+      const cached = JSON.parse(
+        PropertiesService.getScriptProperties().getProperty(MANUFACTURING_CATALOG_CACHE_PROPERTY) || "null"
+      );
+      if (Array.isArray(cached) && cached.length) return cached;
+    } catch (cacheError) {
+      // Continúa con la copia sincronizada de la hoja.
+    }
+    return readManufacturingOrderCatalogFromSheet_(ss);
+  }
   const out = [];
   const seen = new Set();
   liveProducts.forEach(item => {
@@ -924,18 +940,63 @@ function readManufacturingOrderCatalog_(ss) {
       clientKey: client ? client.key : ""
     });
   });
+  if (out.length) {
+    PropertiesService.getScriptProperties()
+      .setProperty(MANUFACTURING_CATALOG_CACHE_PROPERTY, JSON.stringify(out));
+  }
   return out.sort((a, b) => a.sku.localeCompare(b.sku));
 }
 
-function readPremiumManufacturingClients_() {
-  const contacts = holdedRequest_("get", "/contacts");
-  if (!Array.isArray(contacts)) throw new Error("Holded no devolvió un catálogo válido de clientes.");
+function readManufacturingOrderCatalogFromSheet_(ss) {
+  const sheet = ss.getSheetByName("Holded Raw");
+  if (!sheet) throw new Error("No existe la hoja 'Holded Raw' para usarla como respaldo del catálogo.");
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const skuIdx = getColIndex_(values[0], "^sku holded$");
+  const productIdx = getColIndex_(values[0], "^producto holded$");
+  const productIdIdx = getColIndex_(values[0], "^productid holded$");
+  const kindIdx = getColIndex_(values[0], "^kind$");
+  if (skuIdx < 0 || productIdx < 0 || productIdIdx < 0 || kindIdx < 0) {
+    throw new Error("La hoja 'Holded Raw' no contiene las columnas necesarias para recuperar el catálogo.");
+  }
+  const out = [];
+  const seen = new Set();
+  for (let row = 1; row < values.length; row++) {
+    const sku = safeStr_(values[row][skuIdx]);
+    const key = normalizeKey_(sku);
+    if (!sku || seen.has(key) || normalizeKey_(values[row][kindIdx]) !== "lots") continue;
+    seen.add(key);
+    out.push({
+      sku,
+      product: safeStr_(values[row][productIdx]),
+      productId: safeStr_(values[row][productIdIdx]),
+      clientKey: ""
+    });
+  }
+  return out.sort((a, b) => a.sku.localeCompare(b.sku));
+}
+
+function readPremiumManufacturingClients_(orders) {
+  let contacts = null;
+  try {
+    contacts = holdedRequest_("get", "/contacts");
+    if (!Array.isArray(contacts)) throw new Error("Holded no devolvió un catálogo válido de clientes.");
+  } catch (error) {
+    console.warn("No se pudo refrescar el catálogo de clientes de Holded: " + error.message);
+    try {
+      contacts = JSON.parse(
+        PropertiesService.getScriptProperties().getProperty(MANUFACTURING_CONTACTS_CACHE_PROPERTY) || "null"
+      );
+    } catch (cacheError) {
+      contacts = null;
+    }
+  }
   const normalize = value => safeStr_(value)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
   const out = [];
   const seen = new Set();
-  contacts.forEach(contact => {
+  (Array.isArray(contacts) ? contacts : []).forEach(contact => {
     if (!contact || !contact.id) return;
     const name = safeStr_(contact.name || contact.tradeName);
     const searchText = normalize([contact.name, contact.tradeName, contact.code].join(" "));
@@ -946,6 +1007,22 @@ function readPremiumManufacturingClients_() {
     seen.add(String(contact.id));
     out.push({ id: String(contact.id), name, premiumKey: config.key, productTag: config.tag });
   });
+  (Array.isArray(orders) ? orders : []).forEach(order => {
+    const id = safeStr_(order && order.clientId);
+    const name = safeStr_(order && order.client);
+    if (!id || !name || seen.has(id)) return;
+    const searchText = normalize(name);
+    const config = MANUFACTURING_ORDERS.premiumClients.find(item =>
+      item.contactTerms.some(term => searchText.includes(term))
+    );
+    if (!config) return;
+    seen.add(id);
+    out.push({ id, name, premiumKey: config.key, productTag: config.tag });
+  });
+  if (out.length) {
+    PropertiesService.getScriptProperties()
+      .setProperty(MANUFACTURING_CONTACTS_CACHE_PROPERTY, JSON.stringify(out));
+  }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 

@@ -140,21 +140,37 @@ function holdedRequest_(method, path) {
   const url = `${HOLDED.baseUrl}${path}`;
   const headers = {};
   headers[HOLDED.authHeaderName] = HOLDED.authHeaderValue(getHoldedApiKey_());
+  let lastCode = 0;
+  let lastBody = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = UrlFetchApp.fetch(url, {
+      method,
+      headers,
+      muteHttpExceptions: true
+    });
+    lastCode = res.getResponseCode();
+    lastBody = res.getContentText();
 
-  const res = UrlFetchApp.fetch(url, {
-    method,
-    headers,
-    muteHttpExceptions: true
-  });
+    if (lastCode >= 200 && lastCode < 300) {
+      try {
+        return lastBody ? JSON.parse(lastBody) : null;
+      } catch (error) {
+        if (attempt < 3) {
+          Utilities.sleep(700 * attempt);
+          continue;
+        }
+        const preview = lastBody.replace(/\s+/g, " ").slice(0, 160);
+        throw new Error(`Holded no devolvió JSON en ${path}. Respuesta: ${preview}`);
+      }
+    }
 
-  const code = res.getResponseCode();
-  const body = res.getContentText();
-
-  if (code < 200 || code >= 300) {
-    throw new Error(`Holded API error ${code}: ${body}`);
+    if (attempt < 3 && (lastCode === 429 || lastCode >= 500)) {
+      Utilities.sleep(700 * attempt);
+      continue;
+    }
+    throw new Error(`Holded API error ${lastCode} en ${path}: ${lastBody}`);
   }
-
-  return JSON.parse(body);
+  throw new Error(`Holded API error ${lastCode} en ${path}: ${lastBody}`);
 }
 
 function holdedV2Request_(method, path, payload) {
