@@ -99,7 +99,17 @@ function getPremiumSalesOrderProposals() {
   // pendiente con un producto terminado activo y gestionado por lotes puede
   // originar una OF.
   const candidates = documents
-    .filter(doc => Number(doc && doc.status) === 0)
+    .filter(doc => {
+      if (Number(doc && doc.status) !== 0) return false;
+      const summaryLines = Array.isArray(doc && doc.items)
+        ? doc.items
+        : (Array.isArray(doc && doc.products) ? doc.products : []);
+      // Algunas respuestas antiguas de Holded no incluyen líneas en el
+      // listado. En ese caso conservamos el pedido y lo validamos al leer
+      // su detalle.
+      if (!summaryLines.length) return true;
+      return summaryLines.some(line => catalogBySku[normalizeKey_(line && line.sku)]);
+    })
     .slice(0, 50);
 
   const proposals = [];
