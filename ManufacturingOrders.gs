@@ -733,28 +733,6 @@ function readProductionsForOrder_(sheet, orderId) {
 }
 
 function readManufacturingOrderCatalog_(ss) {
-  const sheet = ss.getSheetByName("Holded Raw");
-  if (!sheet) throw new Error("No existe la hoja 'Holded Raw'.");
-  const values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
-  const headers = values[0];
-  const skuIdx = getColIndex_(headers, "^sku holded$");
-  const nameIdx = getColIndex_(headers, "^producto holded$");
-  const typeIdx = getColIndex_(headers, "^tipo");
-  const activeIdx = getColIndex_(headers, "^activo");
-  if (skuIdx < 0 || nameIdx < 0) throw new Error("No localizo SKU y producto en 'Holded Raw'.");
-
-  const rawBySku = {};
-  for (let row = 1; row < values.length; row++) {
-    const sku = safeStr_(values[row][skuIdx]);
-    if (!sku) continue;
-    rawBySku[normalizeKey_(sku)] = {
-      product: safeStr_(values[row][nameIdx]),
-      type: typeIdx >= 0 ? normalizeKey_(values[row][typeIdx]) : "",
-      active: activeIdx < 0 || values[row][activeIdx] === true
-    };
-  }
-
   const liveProducts = holdedRequest_("get", "/products");
   if (!Array.isArray(liveProducts)) throw new Error("Holded no devolvió un catálogo válido de productos.");
   const out = [];
@@ -763,14 +741,12 @@ function readManufacturingOrderCatalog_(ss) {
     const sku = safeStr_(item && item.sku);
     if (!sku || seen.has(normalizeKey_(sku))) return;
     if (normalizeKey_(item.kind) !== "lots") return;
-    const raw = rawBySku[normalizeKey_(sku)] || null;
-    if (!raw || !raw.active || raw.type === "rm") return;
     seen.add(normalizeKey_(sku));
     const tags = (Array.isArray(item.tags) ? item.tags : []).map(normalizeManufacturingTag_);
     const client = MANUFACTURING_ORDERS.premiumClients.find(config => tags.includes(config.tag)) || null;
     out.push({
       sku,
-      product: safeStr_(item.name || raw.product),
+      product: safeStr_(item.name),
       productId: safeStr_(item.id),
       clientKey: client ? client.key : ""
     });
