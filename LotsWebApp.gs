@@ -34,8 +34,8 @@ function getLotsDashboardData() {
   assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureLotsSheets_(ss);
-  const products = getLotManagedMaterials_();
   const activeBySku = readActiveLots_(sheets.active);
+  const products = getLotManagedMaterials_(ss, activeBySku);
 
   const materials = LOTS_APP.materialSkus.map(sku => {
     const product = products[normalizeKey_(sku)] || null;
@@ -160,9 +160,16 @@ function assertLotsWebAppAccess_() {
   return email;
 }
 
-function getLotManagedMaterials_() {
-  const data = holdedRequest_("get", "/products");
-  if (!Array.isArray(data)) throw new Error("Holded no devolvió un catálogo válido.");
+function getLotManagedMaterials_(fallbackSpreadsheet, activeBySku) {
+  let data = null;
+  try {
+    data = holdedRequest_("get", "/products");
+    if (!Array.isArray(data)) throw new Error("Holded no devolvió un catálogo válido.");
+  } catch (error) {
+    if (!fallbackSpreadsheet) throw error;
+    console.warn("No se pudo refrescar productos y lotes de Holded: " + error.message);
+    return getLotManagedMaterialsFromSheet_(fallbackSpreadsheet, activeBySku || {});
+  }
 
   const wanted = new Set(LOTS_APP.materialSkus.map(normalizeKey_));
   const out = {};
@@ -172,6 +179,42 @@ function getLotManagedMaterials_() {
     if (product.kind !== "lots" || !Array.isArray(product.lots)) return;
     out[normalizeKey_(sku)] = product;
   });
+  return out;
+}
+
+function getLotManagedMaterialsFromSheet_(ss, activeBySku) {
+  const sheet = ss.getSheetByName("Holded Raw");
+  if (!sheet) throw new Error("No existe la hoja 'Holded Raw' para recuperar las materias primas.");
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return {};
+  const skuIdx = getColIndex_(values[0], "^sku holded$");
+  const nameIdx = getColIndex_(values[0], "^producto holded$");
+  const productIdIdx = getColIndex_(values[0], "^productid holded$");
+  const kindIdx = getColIndex_(values[0], "^kind$");
+  if (skuIdx < 0 || nameIdx < 0 || productIdIdx < 0 || kindIdx < 0) {
+    throw new Error("La hoja 'Holded Raw' no contiene las columnas necesarias para recuperar las materias primas.");
+  }
+  const wanted = new Set(LOTS_APP.materialSkus.map(normalizeKey_));
+  const out = {};
+  for (let row = 1; row < values.length; row++) {
+    const sku = safeStr_(values[row][skuIdx]);
+    const key = normalizeKey_(sku);
+    if (!wanted.has(key) || out[key] || normalizeKey_(values[row][kindIdx]) !== "lots") continue;
+    const active = activeBySku[key] || null;
+    out[key] = {
+      id: safeStr_(values[row][productIdIdx]),
+      sku,
+      name: safeStr_(values[row][nameIdx]),
+      kind: "lots",
+      lots: active ? [{
+        id: active.lotId,
+        sku: active.lotName,
+        barcode: active.barcode,
+        stock: active.stock,
+        description: "Copia local del lote activo"
+      }] : []
+    };
+  }
   return out;
 }
 
