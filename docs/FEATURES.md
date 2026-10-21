@@ -6,6 +6,8 @@
 - La propuesta ya no depende de una lista de clientes ni de etiquetas comerciales.
 - Se siguen excluyendo productos sin gestión por lotes, pedidos no pendientes y líneas que ya tienen una OF.
 
+El lote terminado propuesto por la OF puede auditarse con `previewOxDisairFinishedLot()`. La función consulta el producto real mediante API v2 y construye el reemplazo completo necesario para añadir el lote con stock cero, pero no envía ninguna escritura a Holded.
+
 ## F-002 - Sincronización de costes desde Holded
 
 **Estado:** implementada

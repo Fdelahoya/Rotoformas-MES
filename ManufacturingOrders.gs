@@ -83,6 +83,112 @@ function getManufacturingOrdersData() {
   };
 }
 
+/** Preview de solo lectura para la primera OF de OX. No envía ningún PUT. */
+function previewOxDisairFinishedLot() {
+  return previewFinishedProductLotCreation_("OF-2026-0002");
+}
+
+/**
+ * Construye el reemplazo completo exigido por PUT /api/v2/products/{id} para
+ * añadir el lote terminado de una OF. Solo consulta y registra el borrador.
+ */
+function previewFinishedProductLotCreation_(orderId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const order = readManufacturingOrders_(sheets.orders, sheets.production)
+    .find(item => item.id === safeStr_(orderId));
+  if (!order) throw new Error("No encuentro la OF " + safeStr_(orderId) + ".");
+  if (!order.finishedLot) throw new Error("La OF no tiene lote terminado propuesto.");
+
+  const v1Products = holdedRequest_("get", "/products");
+  const productMatches = (Array.isArray(v1Products) ? v1Products : []).filter(product =>
+    product && normalizeKey_(product.sku) === normalizeKey_(order.sku)
+  );
+  if (productMatches.length !== 1) {
+    throw new Error("Se esperaba un único producto Holded para " + order.sku +
+      "; encontrados: " + productMatches.length + ".");
+  }
+  const catalogProduct = productMatches[0];
+  if (normalizeKey_(catalogProduct.kind) !== "lots") {
+    throw new Error(order.sku + " no está configurado con gestión por lotes.");
+  }
+
+  const source = holdedV2Request_("get", "/products/" + encodeURIComponent(catalogProduct.id));
+  const existingVariants = Array.isArray(source.variants) ? source.variants : [];
+  const lotKey = normalizeKey_(order.finishedLot);
+  const duplicate = existingVariants.find(variant =>
+    normalizeKey_(variant && variant.lot_number) === lotKey ||
+    normalizeKey_(variant && variant.sku) === lotKey
+  );
+  if (duplicate) {
+    return {
+      ok: true,
+      action: "NO_CAMBIAR",
+      reason: "El lote ya existe en Holded.",
+      orderId: order.id,
+      finishedLot: order.finishedLot,
+      productId: source.id,
+      existingLot: duplicate
+    };
+  }
+
+  const date = order.targetDate instanceof Date ? order.targetDate : new Date(order.targetDate);
+  const startDate = isNaN(date.getTime())
+    ? Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
+    : Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const newLot = {
+    sku: order.finishedLot,
+    barcode: null,
+    price: source.price,
+    cost: source.cost,
+    purchase_price: source.purchase_price,
+    stock: 0,
+    description: order.id + (order.salesOrderNumber ? " · Pedido " + order.salesOrderNumber : ""),
+    weight: source.weight,
+    factory_code: null,
+    archived: false,
+    lot_number: order.finishedLot,
+    start_date: startDate,
+    end_date: null
+  };
+  const payload = {
+    name: source.name,
+    description: source.description,
+    sku: source.sku,
+    barcode: source.barcode,
+    price: source.price,
+    cost: source.cost,
+    purchase_price: source.purchase_price,
+    weight: source.weight,
+    tags: Array.isArray(source.tags) ? source.tags : [],
+    taxes: Array.isArray(source.taxes) ? source.taxes : [],
+    for_sale: Boolean(source.for_sale),
+    for_purchase: Boolean(source.for_purchase),
+    archived: Boolean(source.archived),
+    variants: existingVariants.concat([newLot]),
+    pack_items: Array.isArray(source.pack_items) ? source.pack_items : [],
+    show_start_date: Boolean(source.show_start_date),
+    show_end_date: Boolean(source.show_end_date),
+    warehouse_id: source.warehouse_id || null,
+    sales_channel_id: source.sales_channel_id || null,
+    exp_account_id: source.exp_account_id || null
+  };
+  const result = {
+    ok: true,
+    action: "PREVIEW_PUT_NO_ENVIADO",
+    endpoint: "/api/v2/products/" + source.id,
+    orderId: order.id,
+    salesOrderNumber: order.salesOrderNumber,
+    finishedLot: order.finishedLot,
+    productId: source.id,
+    existingLots: existingVariants,
+    newLot,
+    payload
+  };
+  console.log("FINISHED_LOT_PREVIEW_NO_ENVIADO " + JSON.stringify(result));
+  return result;
+}
+
 function getPremiumSalesOrderProposals() {
   assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
