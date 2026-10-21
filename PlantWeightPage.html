@@ -19,7 +19,7 @@
   <dialog id="labelDialog"><div class="dialog-body"><h2>Vista previa de etiqueta</h2><p class="hint">Formato 100 × 150 mm. El QR abre la ficha protegida de trazabilidad del lote.</p><div id="labelSheet" class="label-sheet"></div><div class="actions"><button type="button" class="secondary" onclick="el('labelDialog').close()">Cerrar</button><button type="button" class="primary" onclick="printLabel()">Imprimir / guardar PDF</button></div></div></dialog>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    const TRACEABILITY_BASE_URL='https://script.google.com/a/macros/rotoformas.com/s/AKfycbyNA69u8JNmcqRaAct4vNMYey5dXCSKa4L-5f9wwcV2FG-zrBjnWnsfUlzKHoIL4ek86w/exec';
+    const TRACEABILITY_BASE_URL='https://script.google.com/a/macros/rotoformas.com/s/AKfycbw5LAL2__An-gyUsq8qDYNKfYZ5tfJys8INv7__MpmHx32SuZWxonaFiygbsO92tBsN5Q/exec';
     const BRAND_LOGO_URL='https://cdn.durable.co/branding/1AeQu6Rux0KX6jVKtUdTlEoiwn5eOwT4hMzLYdcBnsB2kkCMATfe6YLrOibMbSrA.png';
     let data=null,lastMeasurement=null;const el=id=>document.getElementById(id);const esc=v=>String(v==null?'':v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));const num=v=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:2}).format(Number(v||0));const kg=v=>new Intl.NumberFormat('es-ES',{minimumFractionDigits:3,maximumFractionDigits:3}).format(Number(v||0));
     function showError(message){el('notice').textContent=message;el('notice').style.display='block';scrollTo({top:0,behavior:'smooth'})}function clearError(){el('notice').style.display='none'}
