@@ -443,6 +443,8 @@ function recordManufacturingPieceWeight_(input, actor) {
       ok: true,
       orderId: order.id,
       finishedLot: order.finishedLot,
+      sku: order.sku,
+      product: order.product,
       pieceNumber,
       theoreticalWeight,
       actualWeight,

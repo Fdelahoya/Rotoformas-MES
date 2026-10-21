@@ -126,6 +126,8 @@ La clasificación utiliza la desviación absoluta respecto al peso teórico:
 
 Una medición no conforme genera una alerta roja muy visible para apartar la pieza y revisar el proceso. Los pesajes se almacenan en la hoja `Pesajes calidad`, y la ficha de trazabilidad muestra el resumen del lote, la media, mínimo, máximo y el detalle de todas las mediciones.
 
+Después de guardar un pesaje conforme o en alerta, la pantalla de planta ofrece una etiqueta provisional imprimible de 100 × 60 mm con producto, SKU, lote, peso bruto individual, fecha/hora, OF y número interno de pieza. Las piezas no conformes no ofrecen impresión. El QR definitivo codificará el nombre del lote y se incorporará al conectar la Zebra; hasta entonces se reserva su espacio y la etiqueta puede guardarse como PDF.
+
 ## Movimientos de stock con lotes
 
 - Los productos con gestión por lotes se actualizan usando un `lotId` real de Holded.
