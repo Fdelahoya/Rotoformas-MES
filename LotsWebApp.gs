@@ -1,7 +1,11 @@
 const LOTS_APP = {
   activeSheet: "Lotes activos",
   historySheet: "Cambios de lote",
-  allowedUsers: ["fidel@rotoformas.com", "bflorentin@rotoformas.com"],
+  allowedUsers: [
+    "fidel@rotoformas.com",
+    "bflorentin@rotoformas.com",
+    "mauro@rotoformas.com"
+  ],
   materialSkus: [
     "PE NATURAL",
     "PE MASA",
