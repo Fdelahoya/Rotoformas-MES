@@ -793,19 +793,29 @@ function getManufacturingRecipeComponentSku_(recipe, pattern) {
 
 /** Repara solo los campos de lote vacíos de la primera OF de OX; no toca stock ni cantidades. */
 function repairOxDisairManufacturingLots() {
-  return repairMissingManufacturingLotsForOrder_("OF-2026-0002");
+  return repairMissingManufacturingLotsForOrder_("OF-2026-0002", {
+    materialSku: "PE NATURAL",
+    pigmentSku: "PIG RTF073"
+  });
 }
 
-function repairMissingManufacturingLotsForOrder_(orderId) {
+function repairMissingManufacturingLotsForOrder_(orderId, expectedComponents) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const order = readManufacturingOrders_(sheets.orders, sheets.production)
     .find(item => item.id === safeStr_(orderId));
   if (!order) throw new Error("No encuentro la orden " + safeStr_(orderId) + ".");
   const recipes = readMesRecipes_(ss);
-  const recipe = recipes[normalizeKey_(order.sku)] || [];
-  const materialSku = getManufacturingRecipeComponentSku_(recipe, /^PE\s/);
-  const pigmentSku = getManufacturingRecipeComponentSku_(recipe, /^PIG/);
+  let recipe = recipes[normalizeKey_(order.sku)] || [];
+  if (!recipe.length && typeof MES_RECIPES !== "undefined") {
+    recipe = MES_RECIPES.initialRows
+      .filter(row => normalizeKey_(row[0]) === normalizeKey_(order.sku))
+      .map(row => ({ componentSku: safeStr_(row[1]), lotManaged: row[4] !== false }));
+  }
+  const materialSku = getManufacturingRecipeComponentSku_(recipe, /^PE\s/) ||
+    safeStr_(expectedComponents && expectedComponents.materialSku);
+  const pigmentSku = getManufacturingRecipeComponentSku_(recipe, /^PIG/) ||
+    safeStr_(expectedComponents && expectedComponents.pigmentSku);
   const activeSheet = ss.getSheetByName(LOTS_APP.activeSheet);
   const activeLots = activeSheet ? readActiveLots_(activeSheet) : {};
   const peLot = getActiveManufacturingLotName_(activeLots, materialSku);
@@ -830,7 +840,15 @@ function repairMissingManufacturingLotsForOrder_(orderId) {
     }
     if (changed) repairedRows++;
   }
-  const result = { orderId: order.id, peLot, pigmentLot, finishedLot, repairedRows };
+  const result = {
+    orderId: order.id,
+    materialSku,
+    pigmentSku,
+    peLot,
+    pigmentLot,
+    finishedLot,
+    repairedRows
+  };
   console.log("MANUFACTURING_LOTS_REPAIRED " + JSON.stringify(result));
   return result;
 }
@@ -839,7 +857,10 @@ function getActiveManufacturingLotName_(activeLots, sku) {
   const key = normalizeKey_(sku);
   if (!key) return "";
   const active = activeLots[key] || null;
-  if (!active || safeStr_(active.status).toUpperCase() !== "ACTIVO") return "";
+  // La propia presencia en la hoja "Lotes activos" representa la selección
+  // vigente. Algunas filas históricas no tienen la columna Estado informada,
+  // aunque el panel las muestra correctamente como activas.
+  if (!active) return "";
   return safeStr_(active.lotName);
 }
 
