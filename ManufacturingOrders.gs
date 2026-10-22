@@ -716,7 +716,6 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   const sourcePrefix = `RESUMEN|${safeStr_(dateText)}|${shift}|`;
   const activeLotsSheet = ss.getSheetByName(LOTS_APP.activeSheet);
   const activeLots = activeLotsSheet ? readActiveLots_(activeLotsSheet) : {};
-  const lotManagedFinishedSkus = readLotManagedFinishedSkus_(ss);
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
@@ -747,11 +746,11 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
       if (!order) return;
-      const peLot = getActiveManufacturingLotName_(activeLots, item.materialSku);
-      const pigmentLot = getActiveManufacturingLotName_(activeLots, item.pigmentSku);
-      const finishedLot = lotManagedFinishedSkus.has(normalizeKey_(sku))
-        ? order.finishedLot || buildFinishedProductLotName_(sku, order.targetDate || date, order.id)
-        : "";
+      const materialSku = safeStr_(item.materialSku) || getManufacturingRecipeComponentSku_(item.recipe, /^PE\s/);
+      const pigmentSku = safeStr_(item.pigmentSku) || getManufacturingRecipeComponentSku_(item.recipe, /^PIG/);
+      const peLot = getActiveManufacturingLotName_(activeLots, materialSku);
+      const pigmentLot = getActiveManufacturingLotName_(activeLots, pigmentSku);
+      const finishedLot = order.finishedLot || buildFinishedProductLotName_(sku, order.targetDate || date, order.id);
       rowsToAppend.push([
         date,
         shift,
@@ -783,6 +782,57 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   } finally {
     lock.releaseLock();
   }
+}
+
+function getManufacturingRecipeComponentSku_(recipe, pattern) {
+  const component = (Array.isArray(recipe) ? recipe : []).find(item =>
+    item && item.lotManaged !== false && pattern.test(normalizeKey_(item.componentSku))
+  );
+  return component ? safeStr_(component.componentSku) : "";
+}
+
+/** Repara solo los campos de lote vacíos de la primera OF de OX; no toca stock ni cantidades. */
+function repairOxDisairManufacturingLots() {
+  return repairMissingManufacturingLotsForOrder_("OF-2026-0002");
+}
+
+function repairMissingManufacturingLotsForOrder_(orderId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ensureManufacturingOrderSheets_(ss);
+  const order = readManufacturingOrders_(sheets.orders, sheets.production)
+    .find(item => item.id === safeStr_(orderId));
+  if (!order) throw new Error("No encuentro la orden " + safeStr_(orderId) + ".");
+  const recipes = readMesRecipes_(ss);
+  const recipe = recipes[normalizeKey_(order.sku)] || [];
+  const materialSku = getManufacturingRecipeComponentSku_(recipe, /^PE\s/);
+  const pigmentSku = getManufacturingRecipeComponentSku_(recipe, /^PIG/);
+  const activeSheet = ss.getSheetByName(LOTS_APP.activeSheet);
+  const activeLots = activeSheet ? readActiveLots_(activeSheet) : {};
+  const peLot = getActiveManufacturingLotName_(activeLots, materialSku);
+  const pigmentLot = getActiveManufacturingLotName_(activeLots, pigmentSku);
+  const finishedLot = safeStr_(order.finishedLot);
+  const values = sheets.production.getDataRange().getValues();
+  let repairedRows = 0;
+  for (let row = 1; row < values.length; row++) {
+    if (safeStr_(values[row][2]) !== order.id) continue;
+    let changed = false;
+    if (!safeStr_(values[row][6]) && peLot) {
+      sheets.production.getRange(row + 1, 7).setValue(peLot);
+      changed = true;
+    }
+    if (!safeStr_(values[row][7]) && pigmentLot) {
+      sheets.production.getRange(row + 1, 8).setValue(pigmentLot);
+      changed = true;
+    }
+    if (!safeStr_(values[row][8]) && finishedLot) {
+      sheets.production.getRange(row + 1, 9).setValue(finishedLot);
+      changed = true;
+    }
+    if (changed) repairedRows++;
+  }
+  const result = { orderId: order.id, peLot, pigmentLot, finishedLot, repairedRows };
+  console.log("MANUFACTURING_LOTS_REPAIRED " + JSON.stringify(result));
+  return result;
 }
 
 function getActiveManufacturingLotName_(activeLots, sku) {
