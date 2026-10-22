@@ -746,8 +746,10 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
       if (!order) return;
-      const materialSku = safeStr_(item.materialSku) || getManufacturingRecipeComponentSku_(item.recipe, /^PE\s/);
-      const pigmentSku = safeStr_(item.pigmentSku) || getManufacturingRecipeComponentSku_(item.recipe, /^PIG/);
+      const materialSku = safeStr_(item.materialSku) ||
+        getManufacturingRecipeComponentSku_(item.recipe, /^PE\s/, sku);
+      const pigmentSku = safeStr_(item.pigmentSku) ||
+        getManufacturingRecipeComponentSku_(item.recipe, /^PIG/, sku);
       const peLot = getActiveManufacturingLotName_(activeLots, materialSku);
       const pigmentLot = getActiveManufacturingLotName_(activeLots, pigmentSku);
       const finishedLot = order.finishedLot || buildFinishedProductLotName_(sku, order.targetDate || date, order.id);
@@ -784,8 +786,15 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   }
 }
 
-function getManufacturingRecipeComponentSku_(recipe, pattern) {
-  const component = (Array.isArray(recipe) ? recipe : []).find(item =>
+function getManufacturingRecipeComponentSku_(recipe, pattern, productSku) {
+  let components = Array.isArray(recipe) ? recipe : [];
+  if (!components.some(item => item && pattern.test(normalizeKey_(item.componentSku))) &&
+      productSku && typeof MES_RECIPES !== "undefined") {
+    components = components.concat(MES_RECIPES.initialRows
+      .filter(row => normalizeKey_(row[0]) === normalizeKey_(productSku))
+      .map(row => ({ componentSku: safeStr_(row[1]), lotManaged: row[4] !== false })));
+  }
+  const component = components.find(item =>
     item && item.lotManaged !== false && pattern.test(normalizeKey_(item.componentSku))
   );
   return component ? safeStr_(component.componentSku) : "";
@@ -812,9 +821,9 @@ function repairMissingManufacturingLotsForOrder_(orderId, expectedComponents) {
       .filter(row => normalizeKey_(row[0]) === normalizeKey_(order.sku))
       .map(row => ({ componentSku: safeStr_(row[1]), lotManaged: row[4] !== false }));
   }
-  const materialSku = getManufacturingRecipeComponentSku_(recipe, /^PE\s/) ||
+  const materialSku = getManufacturingRecipeComponentSku_(recipe, /^PE\s/, order.sku) ||
     safeStr_(expectedComponents && expectedComponents.materialSku);
-  const pigmentSku = getManufacturingRecipeComponentSku_(recipe, /^PIG/) ||
+  const pigmentSku = getManufacturingRecipeComponentSku_(recipe, /^PIG/, order.sku) ||
     safeStr_(expectedComponents && expectedComponents.pigmentSku);
   const activeSheet = ss.getSheetByName(LOTS_APP.activeSheet);
   const activeLots = activeSheet ? readActiveLots_(activeSheet) : {};
