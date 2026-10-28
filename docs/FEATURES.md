@@ -1,5 +1,11 @@
 # Funcionalidades
 
+## Paradas e incidencias en planta (28/10/2026)
+
+**Estado: prototipo visual público; sin backend ni registro operativo.**
+Formularios de prueba accesibles sin login desde la pantalla de producción.
+Alcance, límites y siguientes pasos: [Paradas e incidencias — UI](PARADAS-INCIDENCIAS-UI.md).
+
 ## Pedidos pendientes para órdenes de fabricación
 
 - Un pedido pendiente de Holded se propone como OF cuando contiene un producto con gestión por lotes en el catálogo vivo de Holded.

@@ -1,0 +1,33 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('PlantWeightPage.html','utf8');
+const code = html.match(/<script>\s*([\s\S]*)<\/script>/)[1];
+new vm.Script(code);
+const elements = new Map();
+const get = id => {
+  if (!elements.has(id)) elements.set(id, {value:'',textContent:'',innerHTML:'',hidden:false,style:{},
+    reset(){},focus(){},showModal(){this.open=true},close(){this.open=false},scrollIntoView(){},addEventListener(){}});
+  return elements.get(id);
+};
+let reads=0;
+const runner = {withSuccessHandler(){return this},withFailureHandler(){return this},getPlantWeightOrders(){reads++}};
+const context = vm.createContext({document:{getElementById:get},google:{script:{run:runner}},Date,Intl,QRCode:undefined});
+vm.runInContext(code,context);
+assert.equal(reads,1);
+vm.runInContext("openPlantEvent('parada')",context);
+assert.equal(get('plantEventDialog').open,true);
+assert.equal(get('eventStopFields').hidden,false);
+get('eventDescription').value='<img src=x onerror=alert(1)>';
+vm.runInContext('previewPlantEvent({preventDefault(){}})',context);
+assert.match(get('eventPreview').innerHTML,/NO ENVIADO/);
+assert.match(get('eventPreview').innerHTML,/&lt;img/);
+assert.equal(reads,1);
+vm.runInContext("openPlantEvent('incidencia')",context);
+assert.equal(get('eventStopFields').hidden,true);
+assert.equal(get('eventMinutes').disabled,true);
+vm.runInContext('previewPlantEvent({preventDefault(){}})',context);
+assert.equal(reads,1);
+const prototype = code.slice(code.indexOf('// UI-only prototype.'));
+assert(!/google\.script|fetch\(|XMLHttpRequest|localStorage|sessionStorage/.test(prototype.split('    loadOrders();')[0]));
+console.log('PASS: syntax; both dialogs; optional OF without data; escaped preview; no prototype writes or network calls.');
