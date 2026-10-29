@@ -35,6 +35,9 @@ function buildStockMovementsFromResumen_() {
   const recycledSkus = readRecycledSkuList_(ss, CONFIG.productMasterSheet);
   const recipes = readMesRecipes_(ss);
   const finishedLotsBySku = readFinishedLotsForCurrentResumen_(ss);
+  const orderSheets = ensureManufacturingOrderSheets_(ss);
+  const openOrderSkus = new Set(readManufacturingOrders_(orderSheets.orders, orderSheets.production)
+    .filter(o => o.status === MANUFACTURING_ORDERS.openStatus).map(o => normalizeKey_(o.sku)));
 
   const holdedData = holded.getDataRange().getValues();
   if (holdedData.length < 2) throw new Error("Holded Raw no tiene datos.");
@@ -87,6 +90,24 @@ function buildStockMovementsFromResumen_() {
   let pigmento301Kg = 0;
   let pigmento300Kg = 0;
   const recipeConsumptions = {};
+  function addRecipeConsumption(component, quantity, finishedSku) {
+    const link = finishedLotsBySku[normalizeKey_(finishedSku)];
+    if (link && link.error) throw new Error(link.error);
+    if (/^PIG/i.test(component.componentSku) && link && link.pigmentMode === 'OFF') return;
+    const isPe = /^PE\s/i.test(component.componentSku);
+    const tracked = link && (isPe || /^PIG/i.test(component.componentSku));
+    const lotId = tracked ? (isPe ? link.peLotId : link.pigmentLotId) : '';
+    const materialSku = tracked ? (isPe ? link.peSku : link.pigmentSku) : '';
+    if (tracked && (!lotId || normalizeKey_(materialSku) !== normalizeKey_(component.componentSku))) {
+      throw new Error('Falta la selección de lote registrada para ' + component.componentSku + ' en ' + finishedSku + '. No se usará el lote global.');
+    }
+    const key = normalizeKey_(component.componentSku) + (tracked ? '|' + lotId : '');
+    if (!recipeConsumptions[key]) recipeConsumptions[key] = {
+      sku: component.componentSku, unit: component.unit, quantity: 0,
+      requestedLotId: lotId, manufacturingOrderId: tracked ? link.orderId : ''
+    };
+    recipeConsumptions[key].quantity += quantity;
+  }
 
   for (let i = 0; i < data.length; i++) {
     const sku = safeStr_(data[i][skuIdx]);
@@ -98,6 +119,9 @@ function buildStockMovementsFromResumen_() {
     if (!sku) continue;
     if (sku === "TOTAL TURNO" || sku === "__TOTAL_TURNO__") break;
     if (uds === 0 && molded === 0) continue;
+    if (openOrderSkus.has(normalizeKey_(sku)) && !finishedLotsBySku[normalizeKey_(sku)]) {
+      throw new Error('La OF de ' + sku + ' no tiene fabricación vinculada para este turno. Revisa sus materias primas y genera de nuevo el resumen antes de aplicar stock.');
+    }
 
     const info = holdedIdx[normalizeKey_(sku)];
 
@@ -136,22 +160,16 @@ function buildStockMovementsFromResumen_() {
     const recipe = recipes[skuKey] || [];
     if (recipe.length) {
       recipe.forEach(component => {
-        const componentKey = normalizeKey_(component.componentSku);
-        if (!recipeConsumptions[componentKey]) {
-          recipeConsumptions[componentKey] = {
-            sku: component.componentSku,
-            unit: component.unit,
-            quantity: 0
-          };
-        }
-        recipeConsumptions[componentKey].quantity += component.quantity * molded;
+        addRecipeConsumption(component, component.quantity * molded, sku);
       });
       continue;
     }
     const esReciclado = recycledSkus.has(skuKey);
     const esMasa = /-M(\s|$)/.test(sku);
 
-    if (esReciclado) {
+    if (finishedLotsBySku[skuKey]) {
+      addRecipeConsumption({componentSku:esReciclado ? 'PE RECICLADO' : esMasa ? 'PE MASA' : 'PE NATURAL',unit:'kg'}, kgTotales, sku);
+    } else if (esReciclado) {
       peRecicladoKg += kgTotales;
     } else if (esMasa) {
       peMasaKg += kgTotales;
@@ -162,13 +180,13 @@ function buildStockMovementsFromResumen_() {
     // Consumos especiales de PORTATAPAS
     if (sku === "PORTATAPAS") {
       insertoV4Uds += uds * 24;
-      pigmento300Kg += uds * 0.09;
+      addRecipeConsumption({componentSku:'PIG300',unit:'kg'}, uds * 0.09, sku);
     }
 
     // Consumos especiales de PORTATAPAS OVAL2000
     if (sku === "PORTATAPAS OVAL2000") {
      insertoV4Uds += uds * 20;
-     pigmento301Kg += uds * 0.90;
+     addRecipeConsumption({componentSku:'PIG301',unit:'kg'}, uds * 0.90, sku);
     }
 
     // Consumos especiales de LAV 26
@@ -276,9 +294,11 @@ function buildStockMovementsFromResumen_() {
   Object.keys(recipeConsumptions).forEach(key => {
     const component = recipeConsumptions[key];
     if (component.quantity <= 0) return;
-    const info = holdedIdx[key];
+    const info = holdedIdx[normalizeKey_(component.sku)];
     movimientos.push({
       sku: component.sku,
+      requestedLotId: component.requestedLotId,
+      manufacturingOrderId: component.manufacturingOrderId,
       producto: info ? info.nombre : "",
       productId: info ? info.productId : "",
       parentId: info ? info.parentId : "",
@@ -343,6 +363,13 @@ function previewStockMovements() {
 }
 
 function applyStockMovements() {
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(30000);
+  try { return applyStockMovementsLocked_(); }
+  finally { lock.releaseLock(); }
+}
+
+function applyStockMovementsLocked_() {
   const movimientos = buildStockMovementsFromResumen_();
   const grouped = {};
   const timestamp = new Date();
@@ -362,6 +389,9 @@ function applyStockMovements() {
 
     const currentProduct = catalog[normalizeKey_(m.sku)] || null;
     const isLotManaged = currentProduct && currentProduct.kind === "lots";
+    if (m.requestedLotId && !isLotManaged) {
+      throw new Error('La materia prima ' + m.sku + ' de la OF requiere un producto con lotes en Holded.');
+    }
     const esVariante = !isLotManaged && !!m.parentId && m.kind === "variants";
     const urlProductId = currentProduct && currentProduct.id
       ? currentProduct.id
@@ -391,11 +421,16 @@ function applyStockMovements() {
     grouped[key].movimientoAgrupado += m.movimiento;
   });
 
+  const invalidLot = Object.values(grouped).find(g => g.lotError);
+  if (invalidLot) throw new Error(invalidLot.lotError);
   Object.values(grouped).forEach((g, idx) => {
     try {
       const delta = round2_(g.delta);
-      const movementKey = buildStockMovementKey_(resumenInfo, g.sku, delta);
+      const movementKey = buildStockMovementKey_(resumenInfo, g.sku, delta, /^(PIG|PE\s)/i.test(g.sku) ? g.lotId : '');
       if (g.lotError) throw new Error(g.lotError);
+      if (/^(PIG|PE\s)/i.test(g.sku) && g.lotId && Array.from(alreadyApplied).some(k => k.startsWith([resumenInfo.fechaStr,normalizeKey_(resumenInfo.turno),normalizeKey_(g.sku)].join('|')+'|') && k.split('|').length === 4)) {
+        throw new Error('Este material tiene un movimiento anterior sin clave de lote. Revisar antes de reintentar para no duplicarlo.');
+      }
       if (alreadyApplied.has(movementKey)) {
         logRows.push([
           timestamp, g.sku, g.producto, g.productId, g.parentId || "", g.kind || "",
@@ -405,6 +440,10 @@ function applyStockMovements() {
         ]);
         return;
       }
+      if (/^(PIG|PE\s)/i.test(g.sku) && g.lotId && Array.from(alreadyApplied).some(k => {
+        const parts = k.split('|');
+        return parts[0] === resumenInfo.fechaStr && parts[1] === normalizeKey_(resumenInfo.turno) && parts[2] === normalizeKey_(g.sku) && parts[4] === g.lotId;
+      })) throw new Error('Ya existe un consumo de este lote en el turno con otra cantidad. Requiere conciliación; no se enviará otro consumo completo.');
       const url = `${HOLDED_STOCK.baseUrl}/products/${g.urlProductId}/stock`;
 
       const payload = {
@@ -475,7 +514,7 @@ function applyStockMovements() {
         g.lotId || "",
         g.lotName || "",
         g.lotSource || "",
-        buildStockMovementKey_(resumenInfo, g.sku, round2_(g.delta))
+        buildStockMovementKey_(resumenInfo, g.sku, round2_(g.delta), /^(PIG|PE\s)/i.test(g.sku) ? g.lotId : '')
       ]);
     }
   });
@@ -531,6 +570,10 @@ function resolveStockLot_(sku, product, activeLots) {
 }
 
 function resolveStockLotForMovement_(movement, product, activeLots) {
+  if (movement.requestedLotId) {
+    const lot = (product.lots || []).find(l => String(l.id) === String(movement.requestedLotId) && !l.archived);
+    return lot ? {lot, source:'MATERIA PRIMA OF'} : {lot:null,source:'MATERIA PRIMA OF',error:'El lote de materia prima de la OF no está disponible en Holded.'};
+  }
   const requestedLot = safeStr_(movement && movement.finishedLot);
   if (!requestedLot) return resolveStockLot_(movement.sku, product, activeLots);
 
@@ -576,7 +619,7 @@ function readFinishedLotsForCurrentResumen_(ss) {
     if (!sku || !lotName) continue;
     const key = normalizeKey_(sku);
     const current = out[key];
-    if (current && normalizeKey_(current.lotName) !== normalizeKey_(lotName)) {
+    if (current && (current.error || normalizeKey_(current.lotName) !== normalizeKey_(lotName) || current.pigmentLotId !== safeStr_(values[row][16]) || current.pigmentMode !== safeStr_(values[row][13]) || current.peLotId !== safeStr_(values[row][19]))) {
       out[key] = {
         lotName: "",
         orderId: "",
@@ -587,14 +630,19 @@ function readFinishedLotsForCurrentResumen_(ss) {
     out[key] = {
       lotName,
       orderId: safeStr_(values[row][orderIdx]),
+      pigmentMode: safeStr_(values[row][13]),
+      pigmentSku: safeStr_(values[row][14]),
+      pigmentLotId: safeStr_(values[row][16]),
+      peSku: safeStr_(values[row][17]),
+      peLotId: safeStr_(values[row][19]),
       error: ""
     };
   }
   return out;
 }
 
-function buildStockMovementKey_(info, sku, delta) {
-  return [info.fechaStr, normalizeKey_(info.turno), normalizeKey_(sku), round2_(delta)].join("|");
+function buildStockMovementKey_(info, sku, delta, lotId) {
+  return [info.fechaStr, normalizeKey_(info.turno), normalizeKey_(sku), round2_(delta)].join("|") + (lotId ? '|' + lotId : '');
 }
 
 function readAppliedStockMovementKeys_(ss, resumenInfo) {

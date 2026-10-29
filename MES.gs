@@ -243,8 +243,8 @@ const filasCalc = pares.map(p => {
   let pigmentSku = "";
   if (skuOriginal === "PORTATAPAS") pigmentSku = "PIG300";
   if (skuOriginal === "PORTATAPAS OVAL2000") pigmentSku = "PIG301";
-  const recipePe = recipe.find(component => /^PE\s/.test(normalizeKey_(component.componentSku)));
-  const recipePigment = recipe.find(component => /^PIG/.test(normalizeKey_(component.componentSku)));
+  const recipePe = recipe.find(component => /^PE\s/i.test(normalizeKey_(component.componentSku)));
+  const recipePigment = recipe.find(component => /^PIG/i.test(normalizeKey_(component.componentSku)));
   if (recipePe) materialSku = recipePe.componentSku;
   if (recipePigment) pigmentSku = recipePigment.componentSku;
 

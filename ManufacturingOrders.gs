@@ -531,7 +531,8 @@ function createManufacturingOrder(input) {
       data.salesOrderId,
       data.salesOrderLineId,
       data.salesOrderQuantity,
-      finishedLot
+      finishedLot,
+      "OFF", "", "", "", "", "", "", "", ""
     ]);
   } finally {
     lock.releaseLock();
@@ -614,8 +615,10 @@ function ensureManufacturingOrderSheets_(ss) {
     "Fecha objetivo", "Estado", "Observaciones", "Creada", "Modificada",
     "Creada por", "Modificada por", "contactId Holded",
     "Pedido venta Holded", "salesOrderId Holded", "salesOrderLineId Holded", "Cantidad pedido",
-    "Lote producto terminado"
+    "Lote producto terminado", "Seguimiento pigmento", "SKU pigmento OF", "productId pigmento OF", "lotId pigmento OF", "Lote pigmento OF",
+    "SKU PE OF", "productId PE OF", "lotId PE OF", "Lote PE OF"
   ];
+  if (orders.getMaxColumns() < orderHeaders.length) orders.insertColumnsAfter(orders.getMaxColumns(), orderHeaders.length - orders.getMaxColumns());
   if (orders.getLastRow() === 0) {
     orders.getRange(1, 1, 1, orderHeaders.length).setValues([orderHeaders]).setFontWeight("bold");
     orders.setFrozenRows(1);
@@ -628,7 +631,8 @@ function ensureManufacturingOrderSheets_(ss) {
   const productionHeaders = [
     "Fecha", "Turno", "Nº OF", "SKU", "Uds", "Peso real",
     "Lote PE", "Lote pigmento", "Lote producto terminado",
-    "Clave origen", "Vinculada", "Uds rechazadas", "Uds moldeadas"
+    "Clave origen", "Vinculada", "Uds rechazadas", "Uds moldeadas",
+    "Seguimiento pigmento", "SKU pigmento OF", "productId pigmento OF", "lotId pigmento OF", "SKU PE OF", "productId PE OF", "lotId PE OF"
   ];
   if (production.getLastRow() === 0) {
     production.getRange(1, 1, 1, productionHeaders.length).setValues([productionHeaders]).setFontWeight("bold");
@@ -719,7 +723,10 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
-    const previousLinks = removeManufacturingOrderLinksBySource_(sheets.production, sourcePrefix);
+    const previousRows = {};
+    sheets.production.getDataRange().getValues().slice(1).forEach(r => {
+      if (safeStr_(r[9]).startsWith(sourcePrefix)) previousRows[normalizeKey_(r[3])] = r;
+    });
 
     const allOrders = readManufacturingOrders_(sheets.orders, sheets.production)
       .sort((a, b) => a.id.localeCompare(b.id));
@@ -743,15 +750,19 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       const moldedUnits = numberOrZero_(item.udsMoldeadas || item.moldedUnits) || units + rejectedUnits;
       if (!sku || (units <= 0 && moldedUnits <= 0)) return;
       const candidates = ordersBySku[normalizeKey_(sku)] || [];
-      const previousOrder = ordersById[previousLinks[normalizeKey_(sku)]];
+      const previousRow = previousRows[normalizeKey_(sku)];
+      const previousOrder = previousRow && ordersById[safeStr_(previousRow[2])];
+      if (!previousOrder && candidates.filter(c => c.pendingQuantity > 0).length > 1) {
+        throw new Error('Hay varias OF abiertas para ' + sku + '. No se puede asignar automáticamente el consumo a una de ellas.');
+      }
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
       if (!order) return;
       const materialSku = safeStr_(item.materialSku) ||
         getManufacturingRecipeComponentSku_(item.recipe, /^PE\s/, sku);
       const pigmentSku = safeStr_(item.pigmentSku) ||
         getManufacturingRecipeComponentSku_(item.recipe, /^PIG/, sku);
-      const peLot = getActiveManufacturingLotName_(activeLots, materialSku);
-      const pigmentLot = getActiveManufacturingLotName_(activeLots, pigmentSku);
+      const pe = previousRow ? {sku:safeStr_(previousRow[17]),productId:safeStr_(previousRow[18]),lotId:safeStr_(previousRow[19]),name:safeStr_(previousRow[6])} : orderPeSnapshot_(order, materialSku);
+      const pigment = previousRow ? {mode: safeStr_(previousRow[13]) || 'LEGACY', sku: safeStr_(previousRow[14]), productId: safeStr_(previousRow[15]), lotId: safeStr_(previousRow[16]), name: safeStr_(previousRow[7])} : orderPigmentSnapshot_(order, activeLots, pigmentSku);
       const finishedLot = order.finishedLot || buildFinishedProductLotName_(sku, order.targetDate || date, order.id);
       rowsToAppend.push([
         date,
@@ -760,18 +771,20 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
         sku,
         units,
         numberOrZero_(item.kgTotal || item.realWeight),
-        peLot,
-        pigmentLot,
+        pe.name,
+        pigment.name,
         finishedLot,
         sourcePrefix + normalizeKey_(sku),
         now,
         rejectedUnits,
-        moldedUnits
+        moldedUnits, pigment.mode, pigment.sku, pigment.productId, pigment.lotId, pe.sku, pe.productId, pe.lotId
       ]);
-      order.producedQuantity += units;
+      order.producedQuantity += units - (previousRow ? numberOrZero_(previousRow[4]) : 0);
       order.pendingQuantity = Math.max(0, order.targetQuantity - order.producedQuantity);
     });
 
+    // Validar todo antes de sustituir enlaces. Conservar el lote de los reintentos.
+    removeManufacturingOrderLinksBySource_(sheets.production, sourcePrefix);
     if (rowsToAppend.length) {
       sheets.production.getRange(
         sheets.production.getLastRow() + 1,
@@ -787,6 +800,7 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
 }
 
 function getManufacturingRecipeComponentSku_(recipe, pattern, productSku) {
+  pattern = new RegExp(pattern.source, 'i');
   let components = Array.isArray(recipe) ? recipe : [];
   if (!components.some(item => item && pattern.test(normalizeKey_(item.componentSku))) &&
       productSku && typeof MES_RECIPES !== "undefined") {
@@ -957,6 +971,15 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
       salesOrderLineId: safeStr_(values[row][16]),
       salesOrderQuantity: numberOrZero_(values[row][17]),
       finishedLot: safeStr_(values[row][18]),
+      pigmentMode: safeStr_(values[row][19]) || "LEGACY",
+      pigmentSku: safeStr_(values[row][20]),
+      pigmentProductId: safeStr_(values[row][21]),
+      pigmentLotId: safeStr_(values[row][22]),
+      pigmentLotName: safeStr_(values[row][23]),
+      peSku: safeStr_(values[row][24]),
+      peProductId: safeStr_(values[row][25]),
+      peLotId: safeStr_(values[row][26]),
+      peLotName: safeStr_(values[row][27]),
       producedQuantity: produced,
       pendingQuantity: Math.max(0, target - produced),
       progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0
@@ -981,6 +1004,7 @@ function readProductionsForOrder_(sheet, orderId) {
       realWeight: numberOrZero_(values[row][5]),
       peLot: safeStr_(values[row][6]),
       pigmentLot: safeStr_(values[row][7]),
+      pigmentMode: safeStr_(values[row][13]) || "LEGACY",
       finishedLot: safeStr_(values[row][8])
     });
   }
