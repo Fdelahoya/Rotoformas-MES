@@ -159,7 +159,7 @@ def write_label_pdf(job, target):
     line("Fecha " + job["measuredAt"], 55, 10)
     line("OF " + job["orderId"], 48, 10)
 
-    widget = QrCodeWidget(url, barWidth=0, barHeight=0)
+    widget = QrCodeWidget(url)
     bounds = widget.getBounds()
     size = 40 * mm
     drawing = Drawing(size, size, transform=[
