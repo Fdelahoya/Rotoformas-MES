@@ -30,3 +30,7 @@ El [contexto vivo del MES](docs/CONTEXTO-MES.md) recoge las reglas vigentes, arq
 ## Estado
 
 Proyecto en desarrollo activo.
+
+## Puente Raspberry Pi (rama de desarrollo)
+
+La integración de báscula USB, impresión CUPS/Zebra y envío de URL QR a la variable V1 del láser se documenta en [Integración Raspberry](docs/INTEGRACION-RASPBERRY.md). Requiere instalación, configuración de secretos y validación física; no está desplegada por el hecho de existir en GitHub.
