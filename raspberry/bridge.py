@@ -144,9 +144,13 @@ def write_label_pdf(job, target):
     def line(text, y, size=11, bold=False):
         c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
         value = str(text).replace("\n", " ").replace("\r", " ")
-        # Do not silently print truncated lot or QR identification.
-        if c.stringWidth(value, "Helvetica-Bold" if bold else "Helvetica", size) > 86 * mm:
+        # Reduce font size for long product/lot names, never truncate identifiers.
+        font = "Helvetica-Bold" if bold else "Helvetica"
+        while size > 8 and c.stringWidth(value, font, size) > 86 * mm:
+            size -= 0.5
+        if c.stringWidth(value, font, size) > 86 * mm:
             raise ValueError("Texto demasiado largo para la etiqueta: " + value[:60])
+        c.setFont(font, size)
         c.drawString(left, y * mm, value)
 
     line(job["product"], 119, 15, True)
