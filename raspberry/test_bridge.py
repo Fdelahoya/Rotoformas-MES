@@ -58,7 +58,7 @@ class HardwareJobTests(unittest.TestCase):
         self.assertTrue(contents.startswith(b"%PDF-"))
         # ReportLab writes 100*mm x 150*mm page media box in points.
         self.assertIn(b"283.4646", contents)
-        self.assertIn(b"425.1968", contents)
+        self.assertIn(b"425.1969", contents)
 
     def test_deduplicate_and_report_independent_outcomes(self):
         with patch.object(bridge, "print_zebra", side_effect=RuntimeError("No CUPS")), \
