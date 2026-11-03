@@ -159,6 +159,10 @@ En `Stock.gs`, revisar especialmente `applyStockMovements`, `resolveStockLotForM
 
 La actualización de varios productos no es una transacción indivisible en Holded: puede haber éxito parcial. Consultar `Holded Log` y existencias antes de repetir un turno completo. Las funciones de prueba y migración pueden escribir datos reales; no ejecutarlas solo porque su nombre incluya «test» o «sandbox».
 
+## Integración Raspberry en rama de desarrollo (3/11/2026)
+
+La rama feat/raspberry-balanza-zebra-laser añade HardwareBridge.gs y raspberry/bridge.py con telemetría estable por USB de la báscula, trabajos de etiqueta CUPS y actualización de V1 del láser, además de una pantalla de pesaje que carga peso reciente y encola automáticamente al preparar la etiqueta. **Todavía NO se ha desplegado ni validado físicamente**, y se conserva el flujo manual existente. No se envía ningún comando para iniciar el marcado. Antes de publicar, revisar seguridad de funciones globales accesibles desde la implementación pública, instalar token compartido solo en propiedades/archivo protegido, probar pérdida de conexión e imprimir/leer QR real. Ver [INTEGRACION-RASPBERRY.md](INTEGRACION-RASPBERRY.md). Esta entrada no sustituye la descripción del estado de producción anterior.
+
 ## Integración de equipos que debe completar Mauro
 
 La impresión de etiquetas con Zebra ZT231 mediante Raspberry Pi y CUPS ha sido comunicada como operativa. Falta incorporar al repositorio la configuración reproducible y confirmar qué versión funciona actualmente. La integración automática de báscula y láser con el MES no queda acreditada por disponer de conexión física.
