@@ -157,8 +157,8 @@ Propiedades del script para ese piloto:
 | `RPI_LASER_ENABLED` | `false` |
 
 No ejecutar `initializeRaspberryBridge`: la telemetría solo usa caché, no necesita
-crear `Trabajos equipos`. Para comprobar lectura/autocompletado tampoco hace
-falta `RPI_PLANT_KEY` ni desbloquear el puesto. El guardado de una pesada sería
+crear `Trabajos equipos`. El puesto no utiliza contraseña ni `RPI_PLANT_KEY`.
+El guardado de una pesada sería
 otra prueba, con escritura de datos y autorización específica.
 
 ## 5. Arranque manual del piloto, solo tras esa aprobación
@@ -188,7 +188,7 @@ el escenario en un MES de ensayo; no crear una OF productiva solo para probar.
 | Peso editado a mano | Una respuesta anterior no sobrescribe la edición |
 | Impresora/láser | Ningún trabajo nuevo, llamada a CUPS ni conexión al controlador |
 
-No pulsar **Guardar pesaje**, **Preparar etiqueta** ni desbloquear el puesto en
+No pulsar **Guardar pesaje** ni **Preparar etiqueta** en
 esta prueba. Verificar antes/después que no hay registros nuevos en Pesajes
 calidad, Trabajos equipos o Holded. Registrar fecha, versión de código, modelo,
 puerto/protocolo, valor del visor y resultado, sin secretos ni datos personales.

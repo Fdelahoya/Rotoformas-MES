@@ -8,8 +8,6 @@ const HARDWARE = {
   tokenProperty: 'RPI_BRIDGE_TOKEN',
   scaleCacheKey: 'ROTOFORMAS_SCALE_SAMPLE_V1',
   scaleMaxAgeMs: 6500,
-  stationProperty: 'RPI_PLANT_KEY',
-  sessionSeconds: 1800,
   sheet: 'Trabajos equipos',
   headers: ['Id trabajo','Creado','OF','N pieza','SKU','Producto','Lote PT',
     'Peso kg','Fecha pesaje','URL QR','Estado','Impresora','Laser','Detalle','Modificado','Salidas autorizadas'],
@@ -35,26 +33,6 @@ function initializeRaspberryBridge() {
 
 function hardwareEnabled_(name) {
   return PropertiesService.getScriptProperties().getProperty('RPI_' + name + '_ENABLED') === 'true';
-}
-
-/** Clave de puesto distinta del token del equipo; nunca se incrusta en HTML. */
-function openPlantStationSession(key) {
-  const expected = PropertiesService.getScriptProperties().getProperty(HARDWARE.stationProperty);
-  if (!expected || !/^[a-fA-F0-9]{64}$/.test(expected) || key !== expected ||
-      expected === PropertiesService.getScriptProperties().getProperty(HARDWARE.tokenProperty)) {
-    throw new Error('Puesto no autorizado.');
-  }
-  const session = Utilities.getUuid() + Utilities.getUuid();
-  CacheService.getScriptCache().put('PLANT_SESSION_' + session, expected, HARDWARE.sessionSeconds);
-  return {session, expiresIn: HARDWARE.sessionSeconds};
-}
-
-function assertPlantStation_(session) {
-  const expected = PropertiesService.getScriptProperties().getProperty(HARDWARE.stationProperty);
-  if (typeof session !== 'string' || session.length !== 72 || !expected ||
-      CacheService.getScriptCache().get('PLANT_SESSION_' + session) !== expected) {
-    throw new Error('Desbloquea el puesto de planta; la sesion puede haber caducado.');
-  }
 }
 
 function hardwareJobsSheet_(ss) {
@@ -91,8 +69,7 @@ function getPlantScaleWeight() {
 }
 
 /** Una etiqueta por pesaje y numero de pieza, sin afectar stock. */
-function queuePlantLabelJob(orderId, pieceNumber, stationSession) {
-  assertPlantStation_(stationSession);
+function queuePlantLabelJob(orderId, pieceNumber) {
   if (!hardwareEnabled_('PRINT')) throw new Error('Impresion deshabilitada; no se ha creado ningun trabajo.');
   const id = safeStr_(orderId);
   const piece = Number(pieceNumber);
@@ -140,8 +117,7 @@ function queuePlantLabelJob(orderId, pieceNumber, stationSession) {
 }
 
 /** Estado visible despues de preparar una etiqueta. */
-function getPlantLabelJobStatus(jobId, stationSession) {
-  assertPlantStation_(stationSession);
+function getPlantLabelJobStatus(jobId) {
   const sh = hardwareSpreadsheet_().getSheetByName(HARDWARE.sheet);
   if (!sh) return {found:false};
   const rows = sh.getDataRange().getValues();

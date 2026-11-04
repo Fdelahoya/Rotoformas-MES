@@ -53,20 +53,18 @@ Excepciones públicas deliberadas:
 | `doPost` | Token del equipo de 64 caracteres hexadecimales, acción `sync`, límite de cuerpo, protocolo 2. |
 | `getPlantWeightOrders` | Solo proyección de OF abiertas; devuelve contador de pesajes sin nombres, notas ni histórico individual. No crea hojas. |
 | `getPlantScaleWeight` | Solo peso estable reciente; requiere habilitación del servidor. Sin escritura en Sheets. |
-| `openPlantStationSession` | Clave de puesto aleatoria de 64 caracteres hexadecimales, diferente del token del equipo. |
-| `recordPlantManufacturingPieceWeight` | Sesión de puesto válida antes de guardar. Elegir operario no sustituye la sesión. |
-| `queuePlantLabelJob` | Sesión de puesto, impresión habilitada, pesaje existente y reciente, resultado CONFORME/ALERTA, bloqueo y clave OF/pieza. |
-| `getPlantLabelJobStatus` | Sesión de puesto; consulta sin crear hojas. |
+| `recordPlantManufacturingPieceWeight` | Sin contraseña de puesto, por decisión del usuario; exige operario, OF y peso válidos. |
+| `queuePlantLabelJob` | Sin contraseña de puesto; impresión habilitada, pesaje existente y reciente, resultado CONFORME/ALERTA, bloqueo y clave OF/pieza. |
+| `getPlantLabelJobStatus` | Sin contraseña de puesto; consulta sin crear hojas. |
 | `onOpen` | Solo construye el menú de la hoja. |
 | `normalizarSoloFechaString` | Conversión pura de fecha, sin acceso a datos. |
 
-La sesión de puesto dura como máximo 30 minutos, puede desaparecer antes por
-evicción de caché y solo se conserva en memoria del navegador. Recargar bloquea
-de nuevo. Rotar `RPI_PLANT_KEY` revoca las sesiones anteriores. La clave no se
-incrusta en HTML, no se guarda en almacenamiento del navegador y el campo se
-vacía antes de la llamada. Es una autorización compartida del puesto, no una
-identidad individual ni un sustituto de control físico. Cada sesión permite consultar
-los trabajos del puesto; no hay aislamiento por operario.
+El usuario solicita retirar las contraseñas de los puestos el 4/11/2026.
+Se eliminan el cuadro de desbloqueo, la sesión temporal y sus comprobaciones
+en servidor. `RPI_PLANT_KEY` deja de utilizarse. Quien disponga del enlace público
+puede guardar pesajes y consultar trabajos; la selección de operario identifica
+el registro, pero no autentica a la persona. La preparación de etiquetas sigue
+dependiendo de la habilitación de impresión. El token de Raspberry permanece privado.
 
 ## Interruptores y protocolo
 
@@ -109,7 +107,7 @@ la muestra, en lugar de aceptarla como reciente.
 **Pesar pieza** solicita la lectura y rellena el campo automáticamente. Una
 respuesta tardía, caducada o anterior a otra petición no sobrescribe una edición
 manual. No se guarda nada por leer: guardar sigue siendo una acción del operario,
-ahora con sesión de puesto. No hay repetición automática de guardados tras fallos
+sin contraseña de puesto. No hay repetición automática de guardados tras fallos
 de red; su deduplicación por identificador de medición sigue pendiente.
 
 **Preparar etiqueta** reutiliza el pesaje guardado y crea como máximo un trabajo
@@ -165,16 +163,17 @@ ha ejecutado contra producción ni equipos.
    usuario de servicio con acceso `dialout`; el permiso `lp` puede reservarse para
    la fase Zebra. La unidad propuesta incluye `lp`: retirarlo para el piloto de
    solo báscula si ese grupo no existe o no se concede todavía.
-4. Generar dos secretos independientes de 64 caracteres hexadecimales con
-   `secrets.token_hex(32)` en una sesión local protegida: uno para el equipo y otro
-   para desbloquear el puesto. No copiarlos a chat, Git o documentación.
+4. Conservar el token privado del equipo ya validado. Si se prepara otro equipo,
+   generar su secreto de 64 caracteres hexadecimales con `secrets.token_hex(32)`
+   en una sesión local protegida. No se necesita clave de puesto. No copiar el
+   token a chat, Git o documentación.
 5. Archivo `/etc/rotoformas-bridge.env`, permisos 600 y propietario root:
    `RPI_BRIDGE_TOKEN`, `SCALE_PORT`, `BRIDGE_DB`, `SYNC_INTERVAL_SECONDS=3`,
    `ENABLE_PRINT=false`, `ENABLE_LASER=false`. BRIDGE_URL será la URL existente de
    planta terminada en `/exec`, sin `?modo=pesaje`; no la de QR, gestión ni HEAD.
    No hacen falta cola ni host láser para arrancar la fase de báscula.
 6. Cuando se apruebe la publicación, configurar propiedades del script:
-   `RPI_BRIDGE_TOKEN` (mismo secreto del equipo), `RPI_PLANT_KEY` (el segundo),
+   `RPI_BRIDGE_TOKEN` (mismo secreto del equipo),
    `RPI_SCALE_ENABLED=true`, `RPI_PRINT_ENABLED=false`, `RPI_LASER_ENABLED=false`.
    La telemetría sola no necesita inicializar la hoja Trabajos equipos ni ejecutar
    `initializeRaspberryBridge`. Esta función ahora solo vincula la hoja, no activa
@@ -184,7 +183,7 @@ ha ejecutado contra producción ni equipos.
    están apagados. Verificar lecturas estable/inestable/desconectada, coincidencia
    con visor y autocompletado de **Pesar pieza**, sin guardar ni preparar etiquetas.
    Comprobar que no cambia la cola, que no se invoca `lp` ni se abre TCP al láser.
-8. Para validar el guardado después, desbloquear el puesto y acordar primero una
+8. Para validar el guardado después, acordar primero una
    pesada real controlada: esa acción sí escribe un registro del MES. No usar una
    OF de producción como ensayo automático.
 
@@ -206,7 +205,7 @@ ha ejecutado contra producción ni equipos.
    tras cualquier edición, antes de una futura publicación.
 3. Validar primero en proyecto/hoja de ensayo sin secretos de Holded productivos,
    disparadores operativos ni equipos. Probar acceso anónimo y no autorizado,
-   sesión del puesto caducada, reintentos, rechazo de token y estado incierto.
+   guardado sin contraseña de puesto, reintentos, rechazo de token y estado incierto.
 4. Inventariar disparadores instalables y sus propietarios. Las operaciones de
    catálogo/resumen ahora exigen cuenta autorizada: verificar especialmente la
    identidad del disparador `syncHoldedProducts` antes de subir HEAD. Si no puede

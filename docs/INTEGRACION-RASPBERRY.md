@@ -5,7 +5,7 @@ Estado: código preparado en rama de desarrollo; NO desplegado ni validado conju
 > Revisión 4/11/2026: para instalar y publicar, seguir primero
 > [Conciliación y activación por fases](CONCILIACION-RASPBERRY-2026-11-04.md).
 > Esa revisión sustituye el orden de activación descrito abajo: protocolo 2,
-> sesión del puesto y salidas apagadas por defecto. La primera fase habilita
+> puestos sin contraseña y salidas apagadas por defecto. La primera fase habilita
 > únicamente la báscula; no arrancar el puente antiguo ni habilitar equipos al
 > seguir los pasos históricos de este documento.
 

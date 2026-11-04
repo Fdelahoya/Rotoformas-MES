@@ -1,5 +1,20 @@
 # Conexión final Raspberry → MES: piloto de solo báscula
 
+## Decisión posterior del usuario: puestos sin contraseña
+
+El 4/11/2026 el usuario solicita retirar el cuadro de desbloqueo y el requisito
+de clave para guardar pesajes, preparar etiquetas y consultar sus trabajos.
+La pantalla pública permitirá esas operaciones sin contraseña de puesto;
+guardar sigue exigiendo operario, OF y peso válidos. Preparar etiquetas conserva
+la habilitación de impresión y las validaciones del pesaje. El token privado
+de Raspberry y los controles administrativos no cambian. `RPI_PLANT_KEY` deja
+de utilizarse; no es necesario borrar ni modificar esa propiedad para publicar.
+El ajuste conserva la presentación de pesos con un decimal.
+
+El procedimiento de piloto que sigue documenta las fases originales. La lectura
+ya fue validada por el usuario y se autorizó mantener el servicio de solo báscula
+activo y con arranque automático; esta retirada de contraseña no lo detiene.
+
 Preparado el 4/11/2026 para la PR #2. No se han subido archivos a Apps Script,
 creado versiones, actualizado implementaciones, cambiado propiedades ni arrancado
 servicios. La confirmación del usuario acredita las pruebas físicas de Sensocar
@@ -84,7 +99,7 @@ solo los valores de los interruptores, no los secretos.
 | `RPI_SCALE_ENABLED` | `false` | `true` solo al iniciar la prueba |
 | `RPI_PRINT_ENABLED` | `false` | `false` |
 | `RPI_LASER_ENABLED` | `false` | `false` |
-| `RPI_PLANT_KEY` | Sin cambios; no es necesaria para leer peso | Sin cambios; no desbloquear el puesto |
+| `RPI_PLANT_KEY` | No utilizada; conservar sin cambios si existe | No utilizada |
 | `HOLDED_SPREADSHEET_ID`, credenciales Holded y restantes | Sin cambios | Sin cambios |
 
 Las propiedades son globales del proyecto, no específicas de una versión o URL.
@@ -192,15 +207,15 @@ sudo journalctl -u rotoformas-scale-pilot.service --since '5 minutes ago' --no-p
 ```
 
 1. Abrir una pestaña nueva de planta con `?modo=pesaje` para evitar una UI antigua.
-   Elegir operario y una OF abierta adecuada, y pulsar **Pesar pieza**. No hace
-   falta desbloquear el puesto. No pulsar **Guardar pesaje** ni **Preparar etiqueta**.
+   Elegir operario y una OF abierta adecuada, y pulsar **Pesar pieza**. No existe
+   desbloqueo de puesto. No pulsar **Guardar pesaje** ni **Preparar etiqueta**.
 2. Con carga estable, el campo debe mostrar automáticamente el valor del visor,
    en kg y con un decimal (por ejemplo, 8,1 kg), igual que el visor Sensocar.
    Es un formato de presentación: el protocolo y la caché conservan el valor recibido.
    Medición local de menos de 1,5 s; el servidor rechaza
    muestras de más de 6,5 s o futuras. Comprobar NTP si se rechazan todas.
 3. Repetir sin carga e inestabilidad: no deben rellenarse valores válidos. Cambiar
-   la carga estable y pulsar **Leer báscula USB de nuevo**: debe aparecer el peso
+   la carga estable y pulsar **Pesar**: debe aparecer el peso
    nuevo. La UI hace lecturas bajo petición; no refresca continuamente el diálogo.
 4. Desconectar USB o parar el servicio según el permiso del piloto. Tras más de
    6,5 s, solicitar otra lectura: debe rechazarse la muestra anterior. Reconectar

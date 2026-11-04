@@ -1,11 +1,14 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const elements=new Map(), calls=[];
+const elements=new Map(), calls=[], saves=[];
 const el=id=>{if(!elements.has(id))elements.set(id,{value:'',style:{},textContent:'',innerHTML:'',showModal(){},focus(){},addEventListener(){}});return elements.get(id);};
 let success, failure;
 const runner={withSuccessHandler(fn){success=fn;return this},withFailureHandler(fn){failure=fn;return this},
-  getPlantWeightOrders(){},getPlantScaleWeight(){calls.push({success,failure})}};
+  getPlantWeightOrders(){},getPlantScaleWeight(){calls.push({success,failure})},
+  recordPlantManufacturingPieceWeight(input){saves.push(input)}};
 const c=vm.createContext({document:{getElementById:el},google:{script:{run:runner}},Date,Intl,setTimeout(){},scrollTo(){}});
-vm.runInContext(fs.readFileSync('PlantWeightPage.html','utf8').match(/<script>\s*([\s\S]*?)<\/script>/)[1],c);
+const html=fs.readFileSync('PlantWeightPage.html','utf8');
+assert.doesNotMatch(html,/type="password"|stationKey|stationSession|unlockStation/);
+vm.runInContext(html.match(/<script>\s*([\s\S]*?)<\/script>/)[1],c);
 vm.runInContext("data={orders:[{id:'OF1',sku:'SKU',product:'Producto',theoreticalWeight:8.8}]}",c);
 el('operator').value='Operario'; c.openWeight('OF1');
 assert.equal(calls.length,1,'Pesar pieza automatically requests USB sample');
@@ -27,4 +30,10 @@ for (const [weight,display] of [['8.100','8.1'],['8.000','8.0'],['8.149','8.1']]
   assert.equal(el('weight').value,display,'USB field displays one decimal');
   assert.equal(response.weight,weight,'presentation does not change the source sample');
 }
-console.log('PASS: one-decimal USB presentation; source sample preserved; stale, unstable, disconnected, manual edits and out-of-order responses handled.');
+el('weight').value='8.1'; el('notes').value='Control';
+c.saveWeight({preventDefault(){}});
+assert.equal(saves.length,1,'a selected operator can submit without unlocking the station');
+assert.equal(saves[0].actualWeight,'8.1');
+assert.equal(saves[0].operator,'Operario');
+assert.equal(Object.hasOwn(saves[0],'stationSession'),false);
+console.log('PASS: password-free station submission; one-decimal USB presentation; source sample preserved; stale, unstable, disconnected, manual edits and out-of-order responses handled.');

@@ -398,7 +398,6 @@ function getPlantWeightOrders() {
 
 /** Registra un pesaje desde la pantalla pública de planta. */
 function recordPlantManufacturingPieceWeight(input) {
-  assertPlantStation_(input && input.stationSession);
   const data = input || {};
   const operator = safeStr_(data.operator).replace(/[\r\n\t]/g, " ").slice(0, 80);
   if (!operator) throw new Error("Indica el nombre o identificador del operario.");

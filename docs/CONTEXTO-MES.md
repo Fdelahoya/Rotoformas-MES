@@ -1,5 +1,15 @@
 # Contexto vivo del MES de Rotoformas
 
+Decisión vigente del usuario, 4/11/2026: los puestos de planta no deben pedir
+contraseña. Se retiran el cuadro de desbloqueo y la sesión de puesto del código;
+guardar pesajes exige operario, OF y peso válidos. Preparar etiquetas y consultar
+trabajos tampoco requieren clave de puesto; las salidas conservan sus interruptores.
+`RPI_PLANT_KEY` deja de utilizarse. El token del equipo y el acceso administrativo
+no cambian. La pantalla de planta es pública: quien tenga su enlace podrá guardar
+pesajes. La lectura de báscula se mantiene activa, con un decimal y arranque
+automático autorizado. Los estados de publicación de los párrafos históricos
+deben contrastarse con las implementaciones actuales.
+
 Actualizado el 4 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
 
 Actualización del piloto Python 3.7.3: el usuario confirma validación física de
@@ -15,8 +25,8 @@ Revisión local de seguridad en `reconcile/raspberry-safe-2026-11-04`: se concil
 los cambios manuales del editor y se conserva su manifiesto. La consulta de
 permisos del 4/11 confirma planta v48 anónima/propietario y QR/gestión v49
 dominio/usuario que accede. No se ha subido ni publicado esta revisión.
-Ahora el código local exige autorización en 53 entradas administrativas y una
-sesión de puesto para guardar pesajes, encolar y consultar trabajos. El puente
+El código exige autorización en 53 entradas administrativas; las operaciones
+limitadas del puesto no requieren contraseña, por decisión del usuario. El puente
 usa protocolo 2, vigencia de la muestra original y doble habilitación de salidas,
 apagadas por defecto; la fase inicial es solo báscula. Se han validado seis suites
 Node y dieciséis pruebas Python con servicios/equipos simulados. Los párrafos
