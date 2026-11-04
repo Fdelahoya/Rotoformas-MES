@@ -187,3 +187,22 @@ function hardwareSync_(data) {
     return {ok:true,ack,job};
   } finally { lock.releaseLock(); }
 }
+
+/** Abrir desde el menu Rotoformas de la hoja vinculada, no desde el editor. */
+function configurarTokenRaspberry() {
+  assertLotsWebAppAccess_();
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    'Configurar token Raspberry',
+    'Introduce el token hexadecimal de 64 caracteres generado localmente en la Raspberry. No lo copies en el codigo ni lo envies por chat.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+  const token = String(response.getResponseText() || '').trim();
+  if (!/^[0-9a-fA-F]{64}$/.test(token)) {
+    ui.alert('El token debe contener exactamente 64 caracteres hexadecimales. No se ha guardado nada.');
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty(HARDWARE.tokenProperty, token);
+  ui.alert('Token Raspberry guardado correctamente.');
+}
