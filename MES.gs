@@ -100,6 +100,7 @@ function limpiarSalida_(sheet, startA1) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Rotoformas")
+    .addItem("Configurar token Raspberry", "configurarTokenRaspberry")
     .addItem("Generar resumen del día (con márgenes)", "generarResumenDelDia")
     .addItem("Preparar captura de rechazos OX Disair", "installOxDisairRejectedUnitsQuestion")
     .addSeparator()
