@@ -195,7 +195,9 @@ sudo journalctl -u rotoformas-scale-pilot.service --since '5 minutes ago' --no-p
    Elegir operario y una OF abierta adecuada, y pulsar **Pesar pieza**. No hace
    falta desbloquear el puesto. No pulsar **Guardar pesaje** ni **Preparar etiqueta**.
 2. Con carga estable, el campo debe mostrar automáticamente el valor del visor,
-   en kg y con tres decimales. Medición local de menos de 1,5 s; el servidor rechaza
+   en kg y con un decimal (por ejemplo, 8,1 kg), igual que el visor Sensocar.
+   Es un formato de presentación: el protocolo y la caché conservan el valor recibido.
+   Medición local de menos de 1,5 s; el servidor rechaza
    muestras de más de 6,5 s o futuras. Comprobar NTP si se rechazan todas.
 3. Repetir sin carga e inestabilidad: no deben rellenarse valores válidos. Cambiar
    la carga estable y pulsar **Leer báscula USB de nuevo**: debe aparecer el peso
