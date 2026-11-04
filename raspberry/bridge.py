@@ -11,9 +11,10 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import threading
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, quote
 
 import requests
 import serial
@@ -37,6 +38,15 @@ def required(name):
     return value
 
 
+def output_enabled(name):
+    # Fail closed: absence, typo or old environment file never enables equipment.
+    return os.environ.get("ENABLE_" + name) == "true"
+
+
+class OutputUncertain(RuntimeError):
+    """An output might have occurred; human reconciliation is required."""
+
+
 def decode_scale_frame(frame):
     """Return stable numeric kg or None for unstable/invalid frames."""
     try:
@@ -45,7 +55,7 @@ def decode_scale_frame(frame):
             return None
         signed = ("-" if match.group(1) == "-" else "") + match.group(2).replace(",", ".")
         weight = Decimal(signed)
-        if weight <= Decimal("0.100") or not weight.is_finite():
+        if not weight.is_finite() or weight <= Decimal("0.100") or weight >= Decimal("100000"):
             return None
         return float(weight.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
     except (UnicodeError, InvalidOperation, ValueError):
@@ -60,6 +70,7 @@ class ScaleReader:
         self.weight = None
         self.last_frame_at = 0.0
         self.next_retry_at = 0.0
+        self.lock = threading.Lock()
 
     def close(self):
         if self.conn is not None:
@@ -73,6 +84,10 @@ class ScaleReader:
         self.buffer = b""
 
     def poll(self):
+        with self.lock:
+            self._poll()
+
+    def _poll(self):
         now = time.monotonic()
         if self.conn is None:
             if now < self.next_retry_at:
@@ -106,8 +121,11 @@ class ScaleReader:
             self.next_retry_at = time.monotonic() + 5.0
 
     def snapshot(self):
-        valid = self.weight is not None and time.monotonic() - self.last_frame_at <= 1.5
-        return {"stable": bool(valid), "weight": self.weight if valid else None}
+        with self.lock:
+            age = time.monotonic() - self.last_frame_at
+            valid = self.weight is not None and 0 <= age <= 1.5
+            return {"stable": bool(valid), "weight": self.weight if valid else None,
+                    "measuredAt": int((time.time() - age) * 1000) if valid else None}
 
 
 def check_url(url):
@@ -115,10 +133,13 @@ def check_url(url):
         raise ValueError("URL de trazabilidad inesperada; laser no actualizado.")
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
-    if parsed.fragment or not query.get("lote") or set(query) != {"lote"}:
+    if (parsed.fragment or not query.get("lote") or len(query["lote"]) != 1 or
+            set(query) != {"lote"} or any(ord(c) < 32 or ord(c) == 127 for c in url)):
         raise ValueError("URL sin parametro lote valido.")
     if not url.isascii():
         raise ValueError("URL QR debe ser ASCII con lote codificado.")
+    if url != QR_PREFIX + '?lote=' + quote(query['lote'][0], safe="~()*!.'"):
+        raise ValueError("URL QR no canonica")
     return url
 
 
@@ -176,35 +197,47 @@ def write_label_pdf(job, target):
 
 
 def print_zebra(job):
+    if not output_enabled("PRINT"):
+        raise PermissionError("Impresion deshabilitada localmente")
     queue = required("ZEBRA_CUPS_QUEUE")
     with tempfile.TemporaryDirectory(prefix="rotoformas-") as directory:
         pdf = Path(directory) / "etiqueta.pdf"
         write_label_pdf(job, pdf)
         # Paper size and thermal-transfer settings are configured in CUPS defaults.
-        result = subprocess.run(["lp", "-d", queue, "-t", "MES " + str(job["jobId"]),
-                                 str(pdf)], capture_output=True, text=True, timeout=25, check=False)
+        try:
+            result = subprocess.run(["lp", "-d", queue, "-o", "media=Custom.100x150mm",
+                                     "-t", "MES " + str(job["jobId"]), str(pdf)],
+                                    capture_output=True, text=True, timeout=25, check=False)
+        except subprocess.TimeoutExpired as exc:
+            raise OutputUncertain("CUPS no confirma; comprobar cola sin reimprimir") from exc
         if result.returncode:
-            raise RuntimeError("CUPS error: " + (result.stderr or result.stdout).strip()[:300])
+            raise OutputUncertain("CUPS no confirma aceptacion; revisar cola: " +
+                                  (result.stderr or result.stdout).strip()[:300])
         return result.stdout.strip()[:250]  # Queue accepted != physically printed
 
 
 def send_laser_v1(url):
+    if not output_enabled("LASER"):
+        raise PermissionError("Laser V1 deshabilitado localmente")
     url = check_url(url)
-    host = os.environ.get("LASER_HOST", "192.168.0.30")
-    port = int(os.environ.get("LASER_PORT", "8050"))
+    host = required("LASER_HOST")
+    port = int(required("LASER_PORT"))
     packet = b"\x02\x05seta:data#V1=" + url.encode("ascii") + b"\x03"
     with socket.create_connection((host, port), timeout=4) as conn:
         conn.settimeout(4)
-        conn.sendall(packet)
-        reply = bytearray()
-        while len(reply) < 2048 and b"\x03" not in reply:
-            block = conn.recv(512)
-            if not block:
-                break
-            reply.extend(block)
+        try:
+            conn.sendall(packet)
+            reply = bytearray()
+            while len(reply) < 2048 and b"\x03" not in reply:
+                block = conn.recv(512)
+                if not block:
+                    break
+                reply.extend(block)
+        except OSError as exc:
+            raise OutputUncertain("V1 sin confirmacion; revisar controlador") from exc
     expected = b"\x02\x06seta:1:data#V1=" + url.encode("ascii") + b"\x03"
     if expected not in reply:
-        raise RuntimeError("Laser no confirma seta:1 para V1: " + repr(bytes(reply[:200])))
+        raise OutputUncertain("Laser no confirma exactamente V1")
     return "V1 aceptada por controlador (no confirma marcado)"
 
 
@@ -228,6 +261,11 @@ def recover_unknown_jobs(conn):
 
 
 def execute_once(conn, job):
+    if job.get("protocolVersion") != 2 or job.get("outputs", {}).get("print") is not True:
+        raise ValueError("Trabajo sin autorizacion de salida del protocolo 2")
+    if not output_enabled("PRINT"):
+        raise PermissionError("Impresion deshabilitada; trabajo no ejecutado")
+    check_url(job["url"])
     job_id = str(job["jobId"])
     row = conn.execute("SELECT state FROM jobs WHERE job_id=?", (job_id,)).fetchone()
     if row:
@@ -240,17 +278,24 @@ def execute_once(conn, job):
     try:
         details.append(print_zebra(job))
         results["print"] = "COLA_CUPS"
+    except OutputUncertain as exc:
+        details.append("Zebra: " + str(exc)[:250])
     except Exception as exc:
         results["print"] = "ERROR"
         details.append("Zebra: " + str(exc)[:250])
         LOG.exception("Impresion fallida %s", job_id)
-    try:
-        details.append(send_laser_v1(job["url"]))
-        results["laser"] = "V1_ACEPTADA"
-    except Exception as exc:
-        results["laser"] = "ERROR"
-        details.append("Laser: " + str(exc)[:250])
-        LOG.exception("Envio V1 fallido %s", job_id)
+    if job.get("outputs", {}).get("laser") is True and output_enabled("LASER"):
+        try:
+            details.append(send_laser_v1(job["url"]))
+            results["laser"] = "V1_ACEPTADA"
+        except OutputUncertain as exc:
+            details.append("Laser: " + str(exc)[:250])
+        except Exception as exc:
+            results["laser"] = "ERROR"
+            details.append("Laser: " + str(exc)[:250])
+            LOG.exception("Envio V1 fallido %s", job_id)
+    else:
+        results["laser"] = "DESHABILITADO"
     results["detail"] = " | ".join(details)[:850]
     conn.execute("UPDATE jobs SET state='RESULT',result=? WHERE job_id=?",
                  (json.dumps(results), job_id))
@@ -263,7 +308,9 @@ def pending_results(conn):
 
 
 def sync(url, token, sample, results):
-    response = requests.post(url, json={"action": "sync", "token": token,
+    response = requests.post(url, json={"action": "sync", "token": token, "protocolVersion": 2,
+                                         "capabilities": {"print": output_enabled("PRINT"),
+                                                          "laser": output_enabled("LASER")},
                                          "sample": sample, "results": results},
                              timeout=25)
     response.raise_for_status()
@@ -277,19 +324,30 @@ def main():
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
                         format="%(asctime)s %(levelname)s %(message)s")
     url, token = required("BRIDGE_URL"), required("RPI_BRIDGE_TOKEN")
-    if not url.startswith("https://script.google.com/") or len(token) < 32:
+    if not re.fullmatch(r"https://script\.google\.com/(?:a/macros/rotoformas\.com|macros)/s/[A-Za-z0-9_-]+/exec", url) or not re.fullmatch(r"[a-fA-F0-9]{64}", token):
         raise RuntimeError("BRIDGE_URL o RPI_BRIDGE_TOKEN invalidos")
-    required("ZEBRA_CUPS_QUEUE")
+    if output_enabled("LASER") and not output_enabled("PRINT"):
+        raise RuntimeError("Laser requiere fase de impresion habilitada")
+    if output_enabled("PRINT"):
+        required("ZEBRA_CUPS_QUEUE")
     db_path = Path(os.environ.get("BRIDGE_DB", "/var/lib/rotoformas-bridge/jobs.sqlite3"))
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = db_connect(str(db_path))
     recover_unknown_jobs(conn)
     scale = ScaleReader(os.environ.get("SCALE_PORT", "/dev/ttyUSB0"))
+    stop_reader = threading.Event()
+
+    def read_continuously():
+        while not stop_reader.is_set():
+            scale.poll()
+            stop_reader.wait(0.05)
+
+    reader = threading.Thread(target=read_continuously, name='scale-reader', daemon=True)
+    reader.start()
     interval = max(2.0, float(os.environ.get("SYNC_INTERVAL_SECONDS", "3")))
     next_sync = 0.0
     try:
         while True:
-            scale.poll()
             if time.monotonic() >= next_sync:
                 try:
                     payload = sync(url, token, scale.snapshot(), pending_results(conn))
@@ -304,6 +362,8 @@ def main():
                 next_sync = time.monotonic() + interval
             time.sleep(0.05)
     finally:
+        stop_reader.set()
+        reader.join(timeout=2)
         scale.close()
         conn.close()
 

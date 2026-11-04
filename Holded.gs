@@ -35,6 +35,7 @@ function getHoldedApiKey_() {
 }
 
 function configureHoldedApiKey() {
+  assertLotsWebAppAccess_();
   const ui = SpreadsheetApp.getUi();
   const response = ui.prompt(
     "Configurar Holded",
@@ -72,6 +73,7 @@ function getHoldedApiV2Token_() {
 }
 
 function configureHoldedApiV2Token() {
+  assertLotsWebAppAccess_();
   const ui = SpreadsheetApp.getUi();
   const response = ui.prompt(
     "Configurar Holded API v2",
@@ -112,6 +114,7 @@ function getHoldedSpreadsheet_() {
 }
 
 function installDailyHoldedSyncTrigger() {
+  assertLotsWebAppAccess_();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   if (!spreadsheet) {
     throw new Error("Abre el proyecto desde la hoja de cálculo antes de instalar el activador.");
@@ -200,6 +203,7 @@ function holdedV2Request_(method, path, payload) {
 }
 
 function syncHoldedProducts() {
+  assertLotsWebAppAccess_();
   const data = holdedRequest_("get", "/products");
   if (!Array.isArray(data)) {
     throw new Error("Holded no ha devuelto una lista de productos válida.");

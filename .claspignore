@@ -1,0 +1,17 @@
+**/**
+!appsscript.json
+!Costs.gs
+!HardwareBridge.gs
+!Holded.gs
+!LotsWebApp.gs
+!LotsWebAppPage.html
+!ManufacturingOrders.gs
+!MES.gs
+!MigrationProduction.gs
+!MigrationSandbox.gs
+!PigmentOrders.gs
+!PlantWeightPage.html
+!Recipes.gs
+!Stock.gs
+!StockLotTest.gs
+!Validation.gs

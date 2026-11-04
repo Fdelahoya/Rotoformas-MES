@@ -1,4 +1,5 @@
 function verificarSkusResumen() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const resumen = ss.getSheetByName("Resumen");
   const holded = ss.getSheetByName("Holded Raw");

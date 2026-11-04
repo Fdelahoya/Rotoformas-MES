@@ -1,4 +1,9 @@
 .clasp.json
+.clasprc.json
+.local-audit/
+.env
+.env.*
+*.sqlite3
 
 # Archivos de sistema
 .DS_Store

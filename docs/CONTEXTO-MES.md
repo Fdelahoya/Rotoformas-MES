@@ -1,6 +1,25 @@
 # Contexto vivo del MES de Rotoformas
 
-Actualizado el 3 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+Actualizado el 4 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+
+Revisión local de seguridad en `reconcile/raspberry-safe-2026-11-04`: se concilian
+los cambios manuales del editor y se conserva su manifiesto. La consulta de
+permisos del 4/11 confirma planta v48 anónima/propietario y QR/gestión v49
+dominio/usuario que accede. No se ha subido ni publicado esta revisión.
+Ahora el código local exige autorización en 53 entradas administrativas y una
+sesión de puesto para guardar pesajes, encolar y consultar trabajos. El puente
+usa protocolo 2, vigencia de la muestra original y doble habilitación de salidas,
+apagadas por defecto; la fase inicial es solo báscula. Se han validado seis suites
+Node y dieciséis pruebas Python con servicios/equipos simulados. Los párrafos
+históricos sobre acceso anónimo para guardar y preparación automática de etiqueta
+describen la revisión anterior; para la configuración propuesta y sus límites,
+seguir [Conciliación y activación por fases](CONCILIACION-RASPBERRY-2026-11-04.md).
+El [piloto de solo báscula USB](PRUEBA-BASCULA-USB.md) detalla instalación sin
+arranque, prueba local de 20 segundos, configuración con salidas deshabilitadas,
+condición de publicación aprobada de planta, aceptación y parada. Su preparación
+para una PR no autoriza desplegar ni activar equipos.
+Revisar propietarios de disparadores antes de subir; las versiones desplegadas
+mantienen su código previo hasta una actualización aprobada.
 
 Este documento permite continuar el desarrollo del MES, especialmente la integración de Raspberry Pi, báscula, impresora Zebra y láser. Recoge las decisiones vigentes y los límites que deben respetar tanto los desarrolladores como sus asistentes de IA.
 

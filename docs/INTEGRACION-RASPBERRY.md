@@ -2,6 +2,13 @@
 
 Estado: código preparado en rama de desarrollo; NO desplegado ni validado conjuntamente en los equipos. Por separado los tres dispositivos han funcionado según los manuales del proyecto.
 
+> Revisión 4/11/2026: para instalar y publicar, seguir primero
+> [Conciliación y activación por fases](CONCILIACION-RASPBERRY-2026-11-04.md).
+> Esa revisión sustituye el orden de activación descrito abajo: protocolo 2,
+> sesión del puesto y salidas apagadas por defecto. La primera fase habilita
+> únicamente la báscula; no arrancar el puente antiguo ni habilitar equipos al
+> seguir los pasos históricos de este documento.
+
 ## Funcionamiento
 
 1. Raspberry lee Sensocar SCA1-CRT por USB virtual: 9600 baudios, 7 bits, paridad impar, 1 stop; tramas MOBBA terminadas en ETX. Rechaza la bandera ? (inestable), lecturas inválidas, ausencia de bytes, valores no positivos y pesos <= 0,100 kg.

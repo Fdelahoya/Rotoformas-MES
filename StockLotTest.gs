@@ -4,6 +4,7 @@
  * No forma parte del flujo general de movimientos.
  */
 function testStockPeNaturalLoteTest() {
+  assertLotsWebAppAccess_();
   const expectedSku = "PE NATURAL";
   const expectedLotNumber = "lote Test";
   const delta = -0.10;

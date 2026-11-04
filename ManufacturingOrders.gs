@@ -20,6 +20,7 @@ const MANUFACTURING_CATALOG_CACHE_PROPERTY = "MANUFACTURING_CATALOG_CACHE";
 
 /** Consulta temporal de solo lectura para validar pedidos de venta de Tecnospra. */
 function previewTecnospraSalesOrders() {
+  assertLotsWebAppAccess_();
   const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
   if (!Array.isArray(documents)) {
     throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
@@ -59,6 +60,7 @@ function previewTecnospraSalesOrders() {
 
 /** Lee el detalle de los dos pedidos más recientes encontrados en el preview. */
 function previewTecnospraSalesOrderDetails() {
+  assertLotsWebAppAccess_();
   const orders = previewTecnospraSalesOrders().slice(0, 2);
   const details = orders.map(order =>
     holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(order.id))
@@ -87,11 +89,13 @@ function getManufacturingOrdersData() {
 
 /** Preview de solo lectura para la primera OF de OX. No envía ningún PUT. */
 function previewOxDisairFinishedLot() {
+  assertLotsWebAppAccess_();
   return previewFinishedProductLotCreation_("OF-2026-0002");
 }
 
 /** Crea en Holded el lote terminado de la primera OF de OX y lo verifica. */
 function createOxDisairFinishedLot() {
+  assertLotsWebAppAccess_();
   return createFinishedProductLot_("OF-2026-0002");
 }
 
@@ -370,7 +374,13 @@ function recordManufacturingPieceWeight(input) {
 /** Vista pública y limitada para el puesto de pesaje de planta. */
 function getPlantWeightOrders() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ensureManufacturingOrderSheets_(ss);
+  // Una consulta anonima no crea hojas ni cambia cabeceras.
+  const sheets = {orders:ss.getSheetByName(MANUFACTURING_ORDERS.ordersSheet),
+    production:ss.getSheetByName(MANUFACTURING_ORDERS.productionSheet),
+    quality:ss.getSheetByName(MANUFACTURING_ORDERS.qualitySheet)};
+  if (!sheets.orders || !sheets.production || !sheets.quality) {
+    throw new Error('La configuracion de planta requiere revision de un administrador.');
+  }
   const orders = readManufacturingOrders_(sheets.orders, sheets.production)
     .filter(order => order.status === MANUFACTURING_ORDERS.openStatus)
     .map(order => ({
@@ -381,13 +391,14 @@ function getPlantWeightOrders() {
       targetQuantity: order.targetQuantity,
       producedQuantity: order.producedQuantity,
       theoreticalWeight: readManufacturingTheoreticalWeight_(ss, order.sku),
-      quality: getManufacturingQualityData_(sheets.quality, order)
+      quality: {measured: getManufacturingQualityData_(sheets.quality, order).measured}
     }));
   return { generatedAt: formatLotsDate_(new Date()), orders };
 }
 
 /** Registra un pesaje desde la pantalla pública de planta. */
 function recordPlantManufacturingPieceWeight(input) {
+  assertPlantStation_(input && input.stationSession);
   const data = input || {};
   const operator = safeStr_(data.operator).replace(/[\r\n\t]/g, " ").slice(0, 80);
   if (!operator) throw new Error("Indica el nombre o identificador del operario.");
@@ -816,6 +827,7 @@ function getManufacturingRecipeComponentSku_(recipe, pattern, productSku) {
 
 /** Repara solo los campos de lote vacíos de la primera OF de OX; no toca stock ni cantidades. */
 function repairOxDisairManufacturingLots() {
+  assertLotsWebAppAccess_();
   return repairMissingManufacturingLotsForOrder_("OF-2026-0002", {
     materialSku: "PE NATURAL",
     pigmentSku: "PIG RTF073"
@@ -1156,6 +1168,7 @@ function formatManufacturingOrderEpochDate_(value, pattern) {
 }
 
 function previewPremiumProductsWithoutLots() {
+  assertLotsWebAppAccess_();
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) throw new Error("Holded no devolvió un catálogo válido de productos.");
   const rows = [];

@@ -100,12 +100,12 @@ function limpiarSalida_(sheet, startA1) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Rotoformas")
-    .addItem("Configurar token Raspberry", "configurarTokenRaspberry")
     .addItem("Generar resumen del día (con márgenes)", "generarResumenDelDia")
     .addItem("Preparar captura de rechazos OX Disair", "installOxDisairRejectedUnitsQuestion")
     .addSeparator()
     .addSubMenu(
       SpreadsheetApp.getUi().createMenu("Holded")
+        .addItem("Configurar token Raspberry", "configurarTokenRaspberry")
         .addItem("Actualizar catálogo Holded", "syncHoldedProducts")
         .addItem("Auditar productos sin gestión por lotes", "previewPremiumProductsWithoutLots")
         .addItem("Configurar token API v2", "configureHoldedApiV2Token")
@@ -123,6 +123,7 @@ function onOpen() {
 
 /** ============ RESUMEN DEL DÍA ============ **/
 function generarResumenDelDia() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const src = ss.getSheetByName(CONFIG.sourceSheet);
   const dst = ss.getSheetByName(CONFIG.targetSheet);
