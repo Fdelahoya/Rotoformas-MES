@@ -1,0 +1,25 @@
+[Unit]
+Description=Rotoformas MES hardware bridge (scale, Zebra and laser V1)
+After=network-online.target cups.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rotoformas
+Group=rotoformas
+SupplementaryGroups=dialout lp
+WorkingDirectory=/opt/rotoformas-bridge
+EnvironmentFile=/etc/rotoformas-bridge.env
+ExecStart=/opt/rotoformas-bridge/venv/bin/python /opt/rotoformas-bridge/bridge.py
+Restart=always
+RestartSec=5
+StateDirectory=rotoformas-bridge
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/rotoformas-bridge
+
+[Install]
+WantedBy=multi-user.target
