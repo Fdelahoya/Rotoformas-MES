@@ -1,5 +1,10 @@
 # Conciliación y activación por fases
 
+> Para la continuación de la PR #2 con Python 3.7.3 y Sensocar ya validada
+> físicamente por el usuario, consultar [Conexión final Raspberry → MES](PUBLICACION-PILOTO-BASCULA.md).
+> Recoge la nueva entrada exclusiva de báscula, 19 pruebas Python y las
+> autorizaciones pendientes. Las propiedades remotas siguen sin verificar.
+
 Preparado el 4/11/2026 en `reconcile/raspberry-safe-2026-11-04`, desde
 `9a1e9af7190726b35ded44fe0be45c15d2641c18` y la auditoría local de esa fecha.
 **Cambios locales: sin subida a Apps Script, versiones nuevas ni trabajos reales.**

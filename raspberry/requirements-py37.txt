@@ -1,0 +1,4 @@
+# Suite completa heredada: no omitir pruebas PDF/CUPS/V1.
+-r requirements-scale-py37.txt
+reportlab==3.6.13
+Pillow==9.5.0

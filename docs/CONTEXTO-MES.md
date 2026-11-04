@@ -2,6 +2,15 @@
 
 Actualizado el 4 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
 
+Actualización del piloto Python 3.7.3: el usuario confirma validación física de
+Sensocar sin carga, con inestabilidad y con cambio de peso. Se han reproducido y
+corregido los tres accesos incompatibles de mocks sin retirar pruebas; ahora son
+19 pruebas Python, junto con las seis suites Node. Se prepara entrada y servicio
+exclusivos de báscula y perfil de dependencias heredado sin PDF en operación.
+La revisión API a las 09:36 UTC confirma planta v48 y QR/gestión v49; HEAD no ha
+cambiado desde la auditoría. Las propiedades remotas aún no se han podido leer y
+no se han modificado. Ver [publicación y autorizaciones del piloto](PUBLICACION-PILOTO-BASCULA.md).
+
 Revisión local de seguridad en `reconcile/raspberry-safe-2026-11-04`: se concilian
 los cambios manuales del editor y se conserva su manifiesto. La consulta de
 permisos del 4/11 confirma planta v48 anónima/propietario y QR/gestión v49

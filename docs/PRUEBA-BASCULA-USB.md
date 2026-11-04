@@ -1,5 +1,12 @@
 # Piloto USB: únicamente báscula
 
+> Revisión posterior: el usuario ha confirmado las pruebas físicas Sensocar de
+> sin carga, inestabilidad y cambio de peso. Para Python 3.7.3, instalación del
+> servicio exclusivo y conexión final a MES, seguir
+> [Conexión final Raspberry → MES](PUBLICACION-PILOTO-BASCULA.md). Ese documento
+> sustituye los pasos de instalación/arranque siguientes para el piloto heredado;
+> conserva las condiciones de aceptación y las salidas deshabilitadas.
+
 Procedimiento preparado el 4/11/2026. **No ejecutado.** No activa impresora ni
 comunicación con el láser. Requiere autorización posterior para instalar/arrancar
 el servicio y, por separado, para subir/publicar Apps Script. La PR por sí sola

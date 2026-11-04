@@ -19,12 +19,6 @@ from urllib.parse import parse_qs, urlparse, quote
 import requests
 import serial
 
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
-from reportlab.graphics.barcode.qr import QrCodeWidget
-from reportlab.graphics.shapes import Drawing
-from reportlab.graphics import renderPDF
-
 LOG = logging.getLogger("rotoformas-bridge")
 FRAME_RE = re.compile(r"^(?:S|\x02)([+?\-])\s*(\d+(?:[.,]\d+)?)$")
 QR_PREFIX = ("https://script.google.com/a/macros/rotoformas.com/s/"
@@ -145,6 +139,13 @@ def check_url(url):
 
 def write_label_pdf(job, target):
     """PDF sized EXACTLY 100x150mm; CUPS queue must be calibrated accordingly."""
+    # La fase de solo bascula no necesita instalar ni importar PDF/imagen.
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from reportlab.graphics.barcode.qr import QrCodeWidget
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.graphics import renderPDF
+
     url = check_url(job["url"])
     c = canvas.Canvas(str(target), pagesize=(100 * mm, 150 * mm))
     c.setTitle("Rotoformas " + str(job["jobId"]))

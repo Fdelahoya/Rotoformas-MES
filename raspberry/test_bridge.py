@@ -125,7 +125,7 @@ class HardwareJobTests(unittest.TestCase):
         with patch.dict(os.environ, {'ZEBRA_CUPS_QUEUE': 'Zebra_ZT231_USB'}), \
              patch.object(bridge.subprocess, 'run', return_value=Mock(returncode=0, stdout='queued')) as cups:
             bridge.print_zebra(self.job)
-            command = cups.call_args.args[0]
+            command = cups.call_args[0][0]
             self.assertEqual(command[:5], ['lp', '-d', 'Zebra_ZT231_USB', '-o', 'media=Custom.100x150mm'])
             cups.return_value = Mock(returncode=1, stderr='connection lost')
             with self.assertRaises(bridge.OutputUncertain):
@@ -143,7 +143,7 @@ class HardwareJobTests(unittest.TestCase):
              patch.object(bridge.socket, 'create_connection', return_value=conn):
             bridge.send_laser_v1(self.url)
         conn.sendall.assert_called_once_with(b'\x02\x05seta:data#V1=' + self.url.encode('ascii') + b'\x03')
-        packet = conn.sendall.call_args.args[0]
+        packet = conn.sendall.call_args[0][0]
         for forbidden in (b'start:', b'load:', b'stop:'):
             self.assertNotIn(forbidden, packet)
 
@@ -159,12 +159,20 @@ class HardwareJobTests(unittest.TestCase):
         with patch.dict(os.environ, {'ENABLE_PRINT': 'false', 'ENABLE_LASER': 'false'}), \
              patch.object(bridge.requests, 'post', return_value=response) as post:
             bridge.sync('https://example.invalid', 'test-only', {}, [])
-        payload = post.call_args.kwargs['json']
+        payload = post.call_args[1]['json']
         self.assertEqual(payload['protocolVersion'], 2)
         self.assertEqual(payload['capabilities'], {'print': False, 'laser': False})
 
 
 class ScaleFreshnessTests(unittest.TestCase):
+    def test_scale_module_imports_without_pdf_dependencies(self):
+        import runpy
+        import sys
+        with patch.dict(sys.modules, {'reportlab': None}):
+            module = runpy.run_path(bridge.__file__, run_name='scale_import_test')
+            self.assertEqual(module['decode_scale_frame'](b'S+8.800'), 8.8)
+            self.assertFalse(module['ScaleReader']('/not-opened').snapshot()['stable'])
+
     def test_snapshot_is_recent_stable_and_timestamped(self):
         reader = bridge.ScaleReader('/not-opened')
         with patch.object(bridge.time, 'monotonic', return_value=100), \
@@ -180,6 +188,25 @@ class ScaleFreshnessTests(unittest.TestCase):
     def test_huge_weights_rejected(self):
         for frame in (b'S+100000', b'S+999999999999999999999999999999999999'):
             self.assertIsNone(bridge.decode_scale_frame(frame))
+
+
+class ScalePilotTests(unittest.TestCase):
+    def test_entry_point_forces_disabled_outputs_without_equipment(self):
+        import scale_pilot
+        with patch.dict(os.environ, {}, clear=True), patch.object(bridge, 'main') as run:
+            scale_pilot.main()
+            run.assert_called_once_with()
+            self.assertEqual(os.environ['ENABLE_PRINT'], 'false')
+            self.assertEqual(os.environ['ENABLE_LASER'], 'false')
+
+    def test_entry_point_rejects_output_configuration_before_start(self):
+        import scale_pilot
+        for name in ('ENABLE_PRINT', 'ENABLE_LASER'):
+            with patch.dict(os.environ, {'ENABLE_PRINT':'false', 'ENABLE_LASER':'false', name:'true'}), \
+                 patch.object(bridge, 'main') as run:
+                with self.assertRaises(RuntimeError):
+                    scale_pilot.main()
+                run.assert_not_called()
 
 
 if __name__ == "__main__":

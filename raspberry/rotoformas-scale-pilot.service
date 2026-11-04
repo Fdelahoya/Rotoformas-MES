@@ -1,0 +1,25 @@
+[Unit]
+Description=Rotoformas MES scale-only pilot (no printer or laser)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rotoformas
+Group=rotoformas
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/rotoformas-scale-pilot
+EnvironmentFile=/etc/rotoformas-scale-pilot.env
+ExecStart=/opt/rotoformas-scale-pilot/venv/bin/python /opt/rotoformas-scale-pilot/scale_pilot.py
+Restart=on-failure
+RestartSec=5
+StateDirectory=rotoformas-scale-pilot
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/rotoformas-scale-pilot
+
+[Install]
+WantedBy=multi-user.target
