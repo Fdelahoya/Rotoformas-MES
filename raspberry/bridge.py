@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 import time
 import threading
+from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, quote
@@ -137,6 +138,24 @@ def check_url(url):
     return url
 
 
+def label_date(value):
+    """Fecha compacta, conservando la hora local enviada por Apps Script."""
+    text = str(value).strip()
+    if re.fullmatch(r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}', text):
+        return datetime.strptime(text, '%d/%m/%Y %H:%M').strftime('%d/%m/%Y %H:%M')
+    match = re.fullmatch(
+        r'[A-Za-z]{3} ([A-Za-z]{3}) (\d{1,2}) (\d{4}) '
+        r'(\d{2}):(\d{2}):(\d{2}) GMT[+-]\d{4}(?: \([^\r\n]*\))?', text)
+    if match:
+        months = dict(zip(('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'), range(1, 13)))
+        month, day, year, hour, minute, second = match.groups()
+        if month in months:
+            return datetime(int(year), months[month], int(day), int(hour),
+                            int(minute), int(second)).strftime('%d/%m/%Y %H:%M')
+    raise ValueError('Formato de fecha del pesaje no reconocido')
+
+
 def write_label_pdf(job, target):
     """PDF sized EXACTLY 100x150mm; CUPS queue must be calibrated accordingly."""
     # La fase de solo bascula no necesita instalar ni importar PDF/imagen.
@@ -182,7 +201,7 @@ def write_label_pdf(job, target):
     line("Peso bruto", 79, 9)
     line(format(Decimal(str(job["weight"])), ".3f").replace(".", ",") + " kg", 72, 14, True)
     line("Pieza " + str(job["pieceNumber"]), 62, 11, True)
-    line("Fecha " + job["measuredAt"], 55, 10)
+    line("Fecha " + label_date(job["measuredAt"]), 55, 10)
     line("OF " + job["orderId"], 48, 10)
 
     widget = QrCodeWidget(url)

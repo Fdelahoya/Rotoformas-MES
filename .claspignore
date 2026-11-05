@@ -1,6 +1,7 @@
 **/**
 !appsscript.json
 !Costs.gs
+!ConfiguracionZebra.gs
 !HardwareBridge.gs
 !Holded.gs
 !LotsWebApp.gs

@@ -64,6 +64,20 @@ class HardwareJobTests(unittest.TestCase):
         self.assertIn(b"283.4646", contents)
         self.assertIn(b"425.1969", contents)
 
+    def test_apps_script_date_from_real_failed_job_generates_pdf(self):
+        self.job['measuredAt'] = 'Thu Nov 05 2026 06:41:00 GMT+0100 (hora estándar de Europa central)'
+        self.assertEqual(bridge.label_date(self.job['measuredAt']), '05/11/2026 06:41')
+        pdf = Path(self.tmp.name) / 'real-date.pdf'
+        bridge.write_label_pdf(self.job, pdf)
+        self.assertTrue(pdf.read_bytes().startswith(b'%PDF-'))
+
+    def test_label_date_preserves_local_time_and_validates_calendar(self):
+        self.assertEqual(bridge.label_date('03/11/2026 10:15'), '03/11/2026 10:15')
+        self.assertEqual(bridge.label_date('Wed Jul 01 2026 00:05:00 GMT+0200 (hora de verano de Europa central)'), '01/07/2026 00:05')
+        for value in ('fecha incorrecta', '31/02/2026 10:15', 'Thu Nov 05 2026 25:41:00 GMT+0100'):
+            with self.assertRaises(ValueError):
+                bridge.label_date(value)
+
     def test_deduplicate_and_report_independent_outcomes(self):
         with patch.object(bridge, "print_zebra", side_effect=RuntimeError("No CUPS")), \
              patch.object(bridge, "send_laser_v1", return_value="V1 ok") as laser:
