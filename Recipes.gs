@@ -87,6 +87,7 @@ function parseProductionHeader_(header) {
 }
 
 function installOxDisairRejectedUnitsQuestion() {
+  assertLotsWebAppAccess_();
   const title = "OX DISAIR BASIC [RECHAZADAS]";
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const formUrl = spreadsheet.getFormUrl();

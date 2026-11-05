@@ -1,6 +1,77 @@
 # Contexto vivo del MES de Rotoformas
 
-Actualizado el 3 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+Estado vigente y procedimiento reproducible: [Equipos operativos, 5/11/2026](EQUIPOS-OPERATIVOS-2026-11-05.md).
+El usuario confirma báscula, Zebra y actualización V1 del láser funcionando.
+SCALE/PRINT/LASER están habilitados en MES; PRINT/LASER también en Raspberry.
+Los apartados históricos de piloto y salidas apagadas no describen esta fase.
+
+Fase V1 solicitada el 5/11/2026 tras confirmar Zebra: el usuario autoriza enviar
+al laser `192.168.0.30:8050` el comando `STX ENQ seta:data#V1=URL_QR ETX`
+al preparar cada nueva etiqueta. Se ha activado y verificado en Apps Script
+`RPI_LASER_ENABLED=true`, conservando SCALE/PRINT activos. El puente ya implementa
+ese paquete y exige confirmacion de la misma URL. La plantilla del laser debe usar
+V1 como contenido del QR. No se envian comandos de inicio ni de marcado. Se prepara
+`raspberry/enable_laser_v1.py` para habilitar LASER localmente,
+conservar la configuracion existente y comprobar TCP sin enviar un comando.
+El usuario ha instalado la activacion en Raspberry: conexion TCP correcta,
+servicio activo, bascula conectada y V1 habilitada para `192.168.0.30:8050`.
+Tras probar el flujo, confirma «vale ya funciona el laser tbn». Queda registrado
+el funcionamiento de la actualizacion V1 confirmado por el usuario. No se ha
+aportado lectura escaneada del QR para verificar de forma independiente su URL.
+El marcado sigue siendo manual y los trabajos anteriores no se repiten.
+
+Actualización 5/11/2026: Raspberry confirma el puente completo activo con arranque
+automático y cola `Zebra_Technologies_ZTC_ZT231-203dpi_ZPL`, apuntando a
+`socket://192.168.0.167`. Se han guardado y verificado en Apps Script
+SCALE/PRINT `true` y, en esa fase inicial, LASER `false`. Las primeras impresiones automáticas fallaron
+antes de CUPS porque la fecha de Apps Script (`Thu Nov 05 2026 ... GMT+0100 ...`)
+no cabía en el PDF. El puente local convierte ese formato a `dd/MM/yyyy HH:mm`,
+conservando la hora local enviada y validando el calendario. Pasan 21 pruebas,
+incluido PDF con la fecha real fallida. El usuario ha instalado la corrección:
+21 pruebas superadas también en Raspberry, servicio activo y báscula conectada.
+Después confirma «ahora funciona todo»: impresión automática en Zebra validada
+físicamente por el usuario. Después se habilita V1 según el apartado anterior. No se reinician trabajos
+anteriores ni se modifican sus estados: ya hubo impresión manual.
+
+Decisión vigente del usuario, 4/11/2026: los puestos de planta no deben pedir
+contraseña. Se retiran el cuadro de desbloqueo y la sesión de puesto del código;
+guardar pesajes exige operario, OF y peso válidos. Preparar etiquetas y consultar
+trabajos tampoco requieren clave de puesto; las salidas conservan sus interruptores.
+`RPI_PLANT_KEY` deja de utilizarse. El token del equipo y el acceso administrativo
+no cambian. La pantalla de planta es pública: quien tenga su enlace podrá guardar
+pesajes. La lectura de báscula se mantiene activa, con un decimal y arranque
+automático autorizado. Los estados de publicación de los párrafos históricos
+deben contrastarse con las implementaciones actuales.
+
+Actualizado el 4 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+
+Actualización del piloto Python 3.7.3: el usuario confirma validación física de
+Sensocar sin carga, con inestabilidad y con cambio de peso. Se han reproducido y
+corregido los tres accesos incompatibles de mocks sin retirar pruebas; ahora son
+19 pruebas Python, junto con las seis suites Node. Se prepara entrada y servicio
+exclusivos de báscula y perfil de dependencias heredado sin PDF en operación.
+La revisión API a las 09:36 UTC confirma planta v48 y QR/gestión v49; HEAD no ha
+cambiado desde la auditoría. Las propiedades remotas aún no se han podido leer y
+no se han modificado. Ver [publicación y autorizaciones del piloto](PUBLICACION-PILOTO-BASCULA.md).
+
+Revisión local de seguridad en `reconcile/raspberry-safe-2026-11-04`: se concilian
+los cambios manuales del editor y se conserva su manifiesto. La consulta de
+permisos del 4/11 confirma planta v48 anónima/propietario y QR/gestión v49
+dominio/usuario que accede. No se ha subido ni publicado esta revisión.
+El código exige autorización en 53 entradas administrativas; las operaciones
+limitadas del puesto no requieren contraseña, por decisión del usuario. El puente
+usa protocolo 2, vigencia de la muestra original y doble habilitación de salidas,
+apagadas por defecto; la fase inicial es solo báscula. Se han validado seis suites
+Node y dieciséis pruebas Python con servicios/equipos simulados. Los párrafos
+históricos sobre acceso anónimo para guardar y preparación automática de etiqueta
+describen la revisión anterior; para la configuración propuesta y sus límites,
+seguir [Conciliación y activación por fases](CONCILIACION-RASPBERRY-2026-11-04.md).
+El [piloto de solo báscula USB](PRUEBA-BASCULA-USB.md) detalla instalación sin
+arranque, prueba local de 20 segundos, configuración con salidas deshabilitadas,
+condición de publicación aprobada de planta, aceptación y parada. Su preparación
+para una PR no autoriza desplegar ni activar equipos.
+Revisar propietarios de disparadores antes de subir; las versiones desplegadas
+mantienen su código previo hasta una actualización aprobada.
 
 Este documento permite continuar el desarrollo del MES, especialmente la integración de Raspberry Pi, báscula, impresora Zebra y láser. Recoge las decisiones vigentes y los límites que deben respetar tanto los desarrolladores como sus asistentes de IA.
 
@@ -158,6 +229,10 @@ Tablas principales: `Ordenes Fabricacion`, `Fabricaciones OF`, `Pesajes calidad`
 En `Stock.gs`, revisar especialmente `applyStockMovements`, `resolveStockLotForMovement_`, `readFinishedLotsForCurrentResumen_` y `buildStockMovementKey_`. El sistema usa bloqueo y registros para evitar repetir movimientos ya correctos. Los lotes forman parte de la identificación de movimientos de PE y pigmento. Un lote o cantidad discrepante requiere conciliación; no borrar registros para forzar el reintento.
 
 La actualización de varios productos no es una transacción indivisible en Holded: puede haber éxito parcial. Consultar `Holded Log` y existencias antes de repetir un turno completo. Las funciones de prueba y migración pueden escribir datos reales; no ejecutarlas solo porque su nombre incluya «test» o «sandbox».
+
+## Integración Raspberry en rama de desarrollo (3/11/2026)
+
+La rama feat/raspberry-balanza-zebra-laser añade HardwareBridge.gs y raspberry/bridge.py con telemetría estable por USB de la báscula, trabajos de etiqueta CUPS y actualización de V1 del láser, además de una pantalla de pesaje que carga peso reciente y encola automáticamente al preparar la etiqueta. **Todavía NO se ha desplegado ni validado físicamente**, y se conserva el flujo manual existente. No se envía ningún comando para iniciar el marcado. Antes de publicar, revisar seguridad de funciones globales accesibles desde la implementación pública, instalar token compartido solo en propiedades/archivo protegido, probar pérdida de conexión e imprimir/leer QR real. Ver [INTEGRACION-RASPBERRY.md](INTEGRACION-RASPBERRY.md). Esta entrada no sustituye la descripción del estado de producción anterior.
 
 ## Integración de equipos que debe completar Mauro
 

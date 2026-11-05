@@ -3,6 +3,7 @@ const MIGRATION_SANDBOX_TESTVAR_ID = "6ac4ac1f2306dbc2b20ab51a";
 const MIGRATION_SANDBOX_BACKUP_PROPERTY = "HOLDED_SANDBOX_TESTVAR_BACKUP";
 
 function previewMigrationSandboxTestvar() {
+  assertLotsWebAppAccess_();
   const key = migrationSandboxKey_();
 
   const catalog = migrationSandboxGet_("/products?name=testvar&limit=200", key);
@@ -35,6 +36,7 @@ function previewMigrationSandboxTestvar() {
 
 /** Construye un borrador de alta V2 de testvar. No envía ninguna escritura. */
 function previewMigrationSandboxTestvarPayload() {
+  assertLotsWebAppAccess_();
   const source = previewMigrationSandboxTestvar().detail;
   if (source.kind !== "variants" || !Array.isArray(source.variants)) {
     throw new Error("testvar no es una familia de variantes reconocible.");
@@ -87,6 +89,7 @@ function previewMigrationSandboxTestvarPayload() {
 
 /** Vista previa de las dos altas independientes con gestión por lotes. Solo GET. */
 function previewMigrationSandboxTestvarLots() {
+  assertLotsWebAppAccess_();
   const source = previewMigrationSandboxTestvar().detail;
   const candidates = migrationSandboxBuildLotCandidates_(source);
   migrationSandboxLogJson_("testvar / dos productos por lotes (NO ENVIADOS)",
@@ -150,6 +153,7 @@ function migrationSandboxBuildLotCandidates_(source) {
 
 /** Borra la familia testvar del sandbox y crea dos productos independientes con lotes. */
 function migrateSandboxTestvarToLots() {
+  assertLotsWebAppAccess_();
   const key = migrationSandboxKey_();
   const source = previewMigrationSandboxTestvar().detail;
   if (source.id !== MIGRATION_SANDBOX_TESTVAR_ID || source.sku !== "testvar") {

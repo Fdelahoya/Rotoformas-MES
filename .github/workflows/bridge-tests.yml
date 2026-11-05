@@ -1,0 +1,40 @@
+name: Bridge integration tests
+on:
+  push:
+    branches:
+      - feat/raspberry-balanza-zebra-laser
+      - reconcile/raspberry-safe-2026-11-04
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: '3.7'
+            requirements: raspberry/requirements-py37.txt
+          - python: '3.11'
+            requirements: raspberry/requirements.txt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Node tests (MES)
+        run: |
+          node tests/order-pigment.cjs
+          node tests/order-material-flow.cjs
+          node tests/plant-events-ui.cjs
+          node tests/hardware-bridge.cjs
+          node tests/hardware-security.cjs
+          node tests/plant-scale.cjs
+      - name: Python integration tests (no hardware)
+        run: |
+          python -m pip install -r ${{ matrix.requirements }}
+          python -m unittest discover -s raspberry -p 'test_*.py' -v

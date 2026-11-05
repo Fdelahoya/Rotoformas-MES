@@ -30,3 +30,7 @@ El [contexto vivo del MES](docs/CONTEXTO-MES.md) recoge las reglas vigentes, arq
 ## Estado
 
 Proyecto en desarrollo activo.
+
+## Puente Raspberry Pi
+
+El usuario ha confirmado el funcionamiento de báscula USB, impresión automática Zebra y actualización del QR del láser mediante V1 el 5/11/2026. Consulta la [configuración operativa y los pasos de instalación](docs/EQUIPOS-OPERATIVOS-2026-11-05.md). El marcado sigue siendo manual. Las instrucciones históricas están en [Integración Raspberry](docs/INTEGRACION-RASPBERRY.md); guardar código en GitHub no configura ni despliega otro equipo automáticamente.

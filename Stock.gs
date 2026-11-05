@@ -315,6 +315,7 @@ function buildStockMovementsFromResumen_() {
 }
 
 function previewStockMovements() {
+  assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const movimientos = buildStockMovementsFromResumen_();
 
@@ -363,6 +364,7 @@ function previewStockMovements() {
 }
 
 function applyStockMovements() {
+  assertLotsWebAppAccess_();
   const lock = LockService.getDocumentLock();
   lock.waitLock(30000);
   try { return applyStockMovementsLocked_(); }

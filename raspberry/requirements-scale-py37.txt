@@ -1,0 +1,8 @@
+# Piloto heredado Python 3.7.x: solo USB + HTTPS, sin PDF/impresion.
+# Perfil reproducible de compatibilidad; no implica soporte de seguridad vigente.
+pyserial==3.5
+requests==2.31.0
+urllib3==1.26.20
+charset-normalizer==3.4.4
+idna==3.10
+certifi==2025.1.31
