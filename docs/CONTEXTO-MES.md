@@ -8,6 +8,8 @@ El 9 de noviembre se contrastó GitHub con el código de Apps Script y sus despl
 
 ## Cómo mantener este documento
 
+Entretenium: la [migración de veinte SKU a lotes](MIGRACION-ENTRETENIUM.md) está preparada, no ejecutada. Los productos menores (aros, semirrodillos y semiesferas) quedan fuera de la OF por decisión del usuario. No confundir el diagnóstico con una migración completada.
+
 La ampliación está publicada: versión 61 para planta y QR públicos y versión 62 para gestión privada, con el mismo código y manifiestos de acceso separados. Se conservaron las URLs y se verificaron acceso privado y pedidos agrupados. Cinco pruebas automatizadas pasan; la revisión visual con varias piezas utiliza datos ficticios. No se generaron movimientos ni trabajos físicos de prueba. SO260208 requiere revisar la gestión por lotes de sus productos antes de importar su OF. Véanse la verificación y la incidencia de despliegue corregida en [OF con varias piezas](OF-VARIAS-PIEZAS.md).
 
 GitHub es la fuente principal de este contexto. Una copia subida a un proyecto de ChatGPT es una instantánea y no se actualiza automáticamente al cambiar este archivo.
