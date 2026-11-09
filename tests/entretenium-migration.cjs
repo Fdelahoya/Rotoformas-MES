@@ -30,3 +30,18 @@ assert.equal(JSON.parse(data.ENT_MIGRATION_JOURNAL).created.length,20);
 assert.equal(calls.filter(c=>c.method==='delete').length,10);
 assert.equal(calls.filter(c=>c.method==='post').length,20);
 console.log('PASS: decimal-comma responses and recovery without repeated deletion or creation');
+
+ctx.holdedV2Request_=original;setup();ctx.migrateEntreteniumToLots();
+const snap=JSON.parse(data.ENT_PREVIEW_0);snap.details.forEach((f,i)=>f.name='Nombre comercial '+i);data.ENT_PREVIEW_0=JSON.stringify(snap);
+ctx.syncHoldedProducts=()=>{};
+const nameOriginal=ctx.holdedV2Request_;
+ctx.holdedV2Request_=(m,p,b)=>{
+ if(m==='put'){calls.push({method:m,path:p});live[p.split('/').pop()]=JSON.parse(JSON.stringify(b));return{id:b.id};}
+ return nameOriginal(m,p,b);
+};
+Object.values(live).forEach(p=>{p.variants=[{id:p.id+'LOT',lot_number:p.sku,stock:p.stock}];});
+const oldState=JSON.parse(JSON.stringify(live));const named=ctx.restoreEntreteniumCommercialNames();assert.equal(named.length,20);
+for(const [id,before] of Object.entries(oldState)){assert.equal(live[id].id,before.id);assert.equal(live[id].sku,before.sku);assert.deepEqual(live[id].variants,before.variants);assert.equal(ctx.entNameInvariant_(before),ctx.entNameInvariant_(live[id]));assert(live[id].name.startsWith('Nombre comercial'));}
+assert.equal(calls.filter(c=>c.method==='put').length,20);ctx.restoreEntreteniumCommercialNames();assert.equal(calls.filter(c=>c.method==='put').length,20);
+const altered=JSON.parse(JSON.stringify(Object.values(live)[0]));altered.variants[0].id='WRONG';assert.notEqual(ctx.entNameInvariant_(altered),ctx.entNameInvariant_(Object.values(live)[0]));
+console.log('PASS: commercial names restored, full product preserved, lot changes detected, rerun is idempotent');

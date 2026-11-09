@@ -244,3 +244,68 @@ function finishEntreteniumMigration() {
   props.setProperty('ENT_MIGRATION_JOURNAL',JSON.stringify(journal));
   console.log('VERIFICACION FINAL CORRECTA: 20 productos/lotes y almacenes, pedido conservado, catálogo sincronizado.');
 }
+
+/** Conserva el objeto actual completo: PUT v2 reemplaza campos omitidos. */
+function entNameUpdatePayload_(current, name) {
+  const payload=JSON.parse(JSON.stringify(current));
+  payload.name=name;
+  [payload].concat(payload.variants||[]).forEach(item=>{
+    ['price','cost','purchase_price'].forEach(k=>{
+      if(item[k]!=null) item[k]=migrationProductionDecimal_(item[k]);
+    });
+    ['weight','stock'].forEach(k=>{
+      if(item[k]!=null) item[k]=migrationProductionNumber_(item[k]);
+    });
+  });
+  return payload;
+}
+
+/** Compara todos los campos salvo nombre, normalizando formato numérico. */
+function entNameInvariant_(product) {
+  const copy=entNameUpdatePayload_(product,'');
+  const canonical=value=>{
+    if(Array.isArray(value)) return value.map(canonical);
+    if(value && typeof value==='object') return Object.keys(value).sort().reduce((o,k)=>{o[k]=canonical(value[k]);return o;},{});
+    return value;
+  };
+  return JSON.stringify(canonical(copy));
+}
+
+/** Restaura exclusivamente los nombres originales sobre los IDs nuevos. */
+function restoreEntreteniumCommercialNames() {
+  assertLotsWebAppAccess_();
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try {
+    const props=PropertiesService.getScriptProperties();
+    const journal=JSON.parse(props.getProperty('ENT_MIGRATION_JOURNAL')||'null');
+    if(!journal || journal.status!=='PRODUCTS_VERIFIED' || journal.created.length!==20)
+      throw new Error('Migración incompleta');
+    const snapshot=entReadPreview_();
+    const plan=journal.created.map(record=>{
+      const original=snapshot.details.find(f=>f.id===record.parentId &&
+        f.variants.some(v=>v.id===record.sourceId && v.sku===record.sku));
+      if(!original || !String(original.name||'').trim()) throw new Error('No hay nombre original para '+record.sku);
+      return {record,name:original.name};
+    });
+    const result=[];
+    plan.forEach(({record,name})=>{
+      const current=holdedV2Request_('get','/products/'+record.id);
+      if(current.id!==record.id || current.sku!==record.sku || current.kind!=='lots')
+        throw new Error('Identidad distinta '+record.sku);
+      if(current.name!==name) {
+        const key='ENT_NAME_BACKUP_'+record.id;
+        if(!props.getProperty(key)) props.setProperty(key,JSON.stringify(current));
+        holdedV2Request_('put','/products/'+record.id,entNameUpdatePayload_(current,name));
+        const after=holdedV2Request_('get','/products/'+record.id);
+        if(after.name!==name || entNameInvariant_(current)!==entNameInvariant_(after))
+          throw new Error('Verificación de campos distinta '+record.sku+'; detener y revisar copia '+key);
+      }
+      result.push({sku:record.sku,id:record.id,name});
+      props.setProperty('ENT_NAMES_RESULT',JSON.stringify(result));
+      console.log('NOMBRE VERIFICADO '+JSON.stringify(result[result.length-1]));
+    });
+    syncHoldedProducts();
+    console.log('20 NOMBRES RESTAURADOS. IDs, SKU, lotes, stock y demás campos conservados. Catálogo MES actualizado.');
+    return result;
+  } finally {lock.releaseLock();}
+}

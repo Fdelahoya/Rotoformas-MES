@@ -8,6 +8,8 @@ El 9 de noviembre se contrastó GitHub con el código de Apps Script y sus despl
 
 ## Cómo mantener este documento
 
+Los nombres comerciales de los veinte productos de Entretenium se restauraron posteriormente conservando los nuevos IDs, SKU, lotes y stock; catálogo MES actualizado.
+
 Entretenium: la [migración de veinte SKU a lotes](MIGRACION-ENTRETENIUM.md) está ejecutada y verificada. Los productos menores (aros, semirrodillos y semiesferas) quedan fuera de la OF por decisión del usuario. SO260208 permite crear una OF de 8 modelos y 20 unidades; el catálogo está sincronizado. Antes de expedir en Holded hay que reenlazar sus líneas comerciales, que conservan los IDs antiguos. También quedan por revisar los campos que no copia el alta (imágenes, IVA de compra y Tipo de plástico).
 
 La ampliación está publicada: versión 61 para planta y QR públicos y versión 62 para gestión privada, con el mismo código y manifiestos de acceso separados. Se conservaron las URLs y se verificaron acceso privado y pedidos agrupados. Cinco pruebas automatizadas pasan; la revisión visual con varias piezas utiliza datos ficticios. No se generaron movimientos ni trabajos físicos de prueba. La gestión por lotes de SO260208 quedó habilitada posteriormente mediante la migración de Entretenium. Véanse la verificación y la incidencia de despliegue corregida en [OF con varias piezas](OF-VARIAS-PIEZAS.md).

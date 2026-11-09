@@ -60,3 +60,24 @@ La primera ejecución se detuvo después de crear TUBO T-N porque Holded devolvi
 | CODO 30-M | 69b9010e7a1a7c9a41082326 | 6af1ea41f7ccd03f9a004906 | 0 |
 | BOCA SALIDA-N | 69b9007e1e29b20a970fd95b | 6af1ea4389b00e2d0a069cd8 | 0 |
 | BOCA SALIDA-M | 69b9007e1e29b20a970fd95c | 6af1ea446bfb8e64ee02928d | 0 |
+
+## Restauración de nombres comerciales
+
+El 9 de noviembre, a las 17:07 (Europe/Madrid), se restauraron los nombres originales de los veinte productos sobre sus IDs actuales. No se borraron ni recrearon productos. `restoreEntreteniumCommercialNames` toma el nombre de la familia original y conserva el objeto actual completo en PUT v2, incluidos los IDs de lotes. Guarda una copia por producto en `ENT_NAME_BACKUP_<id>` y compara todos los campos antes/después, salvo el nombre, con normalización decimal. Las veinte verificaciones pasaron y Holded Raw se sincronizó.
+
+Pruebas adicionales: cambio de nombre conservando campos y lotes, detección de un lotId distinto y repetición sin PUT adicionales.
+
+| SKU (ambas terminaciones -N / -M) | Nombre comercial restaurado |
+|---|---|
+| TUBO T | Tubo "T" |
+| TRAMO R | Tramo Recto |
+| TOBOGAN SUP | Tobogán Abierto - Superior |
+| TOBOGAN SAL | Tobogán Abierto - Salida |
+| TOBOGAN INF | Tobogán Abierto - Inferior |
+| TOBOGAN ENT | Tobogán Abierto - Entrada |
+| PANEL | Panel Agujero |
+| CODO 90 | Codo 90º |
+| CODO 30 | Codo 30º |
+| BOCA SALIDA | Boca Salida |
+
+![Nombres restaurados](evidencias/entretenium/nombres-restaurados.jpg)
