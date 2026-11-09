@@ -314,6 +314,7 @@ function getPlantWeightOrders() {
       id: order.id,
       client: order.client, salesOrderNumber: order.salesOrderNumber, reference: order.reference,
       targetDateDisplay: order.targetDateDisplay, color: order.color, instructions: order.notes, lotState: order.lotState,
+      materials: order.materials,
       sku: order.sku,
       product: order.product,
       finishedLot: order.finishedLot,
@@ -346,6 +347,7 @@ function recordManufacturingPieceWeight_(input, actor) {
   if (!order) throw new Error(`No encuentro la orden ${orderId}.`);
   if (order.status !== MANUFACTURING_ORDERS.openStatus) throw new Error('La OF está cerrada. Actualiza la pantalla.');
   if (order.lotState && order.lotState !== 'LISTO') throw new Error('El lote de esta pieza está pendiente de preparar en Holded.');
+  assertManufacturingMaterialsReady_(order);
   const theoreticalWeight = readManufacturingTheoreticalWeight_(ss, order.sku);
   if (!(theoreticalWeight > 0)) {
     throw new Error(`El producto ${order.sku} no tiene un peso teórico válido en Holded Raw.`);
@@ -359,6 +361,7 @@ function recordManufacturingPieceWeight_(input, actor) {
         (current.lotState && current.lotState !== 'LISTO')) {
       throw new Error('La OF o su lote han cambiado. Actualiza la pantalla antes de pesar.');
     }
+    assertManufacturingMaterialsReady_(current);
     const values = sheets.quality.getDataRange().getValues();
     let pieceNumber = 1;
     for (let row = 1; row < values.length; row++) {
@@ -925,6 +928,7 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
       progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0
     });
   }
+  out.forEach(order => { order.materials=manufacturingMaterialsState_(order); });
   return out.sort((a, b) => {
     if (a.status !== b.status) return a.status === MANUFACTURING_ORDERS.openStatus ? -1 : 1;
     return b.id.localeCompare(a.id);

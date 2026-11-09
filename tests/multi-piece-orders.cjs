@@ -61,6 +61,7 @@ assert.throws(()=>c.createManufacturingOrderFromSalesOrder(input),/ya tiene una 
 assert.throws(()=>c.recordPlantManufacturingPieceWeight({orderId:id,operator:'Emilio',actualWeight:8}),/Selecciona el modelo/);
 assert.throws(()=>c.recordPlantManufacturingPieceWeight({orderId:id,sku:'OTRO',operator:'Emilio',actualWeight:8}),/No encuentro/);
 assert.throws(()=>c.recordPlantManufacturingPieceWeight({orderId:id,sku:'TRAMO',operator:'Emilio',actualWeight:12}),/pendiente/);
+assert.throws(()=>c.recordPlantManufacturingPieceWeight({orderId:id,sku:'CODO 90',operator:'Emilio',actualWeight:8}),/Materias primas pendientes/);assert.equal(quality.rows.length,1);
 failSku='';c.ensureManufacturingOrderFinishedLot(id,'TRAMO');assert.equal(orderSheet.rows[2][30],'LISTO');
 assert.equal(orderSheet.rows.length,3);
 c.setOrderPigment({orderId:id,sku:'CODO 90',mode:'OFF',peProductId:'PE',peLotId:'A'});
@@ -69,6 +70,8 @@ assert.equal(orderSheet.rows[1][26],'A');assert.equal(orderSheet.rows[2][26],'B'
 const before=orderSheet.writes;
 assert.throws(()=>c.setOrderPigment({orderId:id,mode:'OFF',peProductId:'PE',peLotId:'B'}),/Selecciona el modelo/);
 assert.equal(orderSheet.writes,before);
+const originalWait=lock.waitLock;lock.waitLock=()=>{orderSheet.rows[1][26]=''};
+assert.throws(()=>c.recordPlantManufacturingPieceWeight({orderId:id,sku:'CODO 90',operator:'Emilio',actualWeight:8}),/Materias primas pendientes/);assert.equal(quality.rows.length,1);lock.waitLock=originalWait;orderSheet.rows[1][26]='A';
 const a=c.recordPlantManufacturingPieceWeight({orderId:id,sku:'CODO 90',operator:'Emilio',actualWeight:'8,1'});
 const b=c.recordPlantManufacturingPieceWeight({orderId:id,sku:'TRAMO',operator:'Emilio',actualWeight:12});
 assert.equal(a.theoreticalWeight,8);assert.equal(b.theoreticalWeight,12);assert.equal(a.pieceNumber,1);assert.equal(b.pieceNumber,2);

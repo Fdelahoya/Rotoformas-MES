@@ -56,8 +56,28 @@ function setOrderPigment(input) {
     sheets.orders.getRange(index + 1, 25, 1, 4).setValues([[pe.sku, pe.id, peLot.id, peLot.name]]);
     sheets.orders.getRange(index + 1, 11).setValue(new Date());
     sheets.orders.getRange(index + 1, 13).setValue(getManufacturingOrderUser_());
-    return {ok: true, orderId: id, mode};
+    const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production),id,options.order.sku);
+    return {ok: true, orderId: id, mode, order};
   } finally { lock.releaseLock(); }
+}
+
+/** Estado calculado sobre la configuración persistida de esta línea, no lotes globales. */
+function manufacturingMaterialsState_(order) {
+  const complete = keys => keys.every(k => Boolean(safeStr_(order[k])));
+  const peReady = complete(['peSku','peProductId','peLotId','peLotName']);
+  const pigmentReady = order.pigmentMode === 'OFF' || (order.pigmentMode === 'ON' &&
+    complete(['pigmentSku','pigmentProductId','pigmentLotId','pigmentLotName']));
+  const missing = [];
+  if (!peReady) missing.push('Selecciona el PE y su lote.');
+  if (!pigmentReady) missing.push(order.pigmentMode === 'ON' ? 'Selecciona el pigmento y su lote.' : 'Confirma la configuración de pigmento.');
+  return {ready:peReady && pigmentReady, missing,
+    pe:peReady ? {sku:order.peSku,lot:order.peLotName} : null,
+    pigment:order.pigmentMode === 'ON' && pigmentReady ? {sku:order.pigmentSku,lot:order.pigmentLotName} : null};
+}
+
+function assertManufacturingMaterialsReady_(order) {
+  const state=manufacturingMaterialsState_(order);
+  if (!state.ready) throw new Error('Materias primas pendientes en '+order.id+' · '+order.sku+'. '+state.missing.join(' ')+' Configúralas antes de pesar.');
 }
 
 function orderPigmentSnapshot_(order, activeLots, recipePigmentSku) {

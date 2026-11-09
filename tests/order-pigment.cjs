@@ -34,6 +34,7 @@ const input={orderId:'OF1',mode:'ON',productId:'P',lotId:'X',peProductId:'PE',pe
 assert.throws(()=>ctx.setOrderPigment(input),/existente/);
 assert.throws(()=>ctx.setOrderPigment({...input,lotId:'A'}),/cantidad por pieza/);
 assert.throws(()=>ctx.setOrderPigment({...input,mode:'OFF',peLotId:''}),/Selecciona el PE/);
+ctx.readManufacturingOrders_=()=>[{id:'OF1',sku:'OX'}];ctx.selectManufacturingOrderLine_=rows=>rows[0];
 const writes=[];ctx.LockService={getDocumentLock:()=>({waitLock(){},releaseLock(){}})};
 const values=[[],['OF1','','OX','','','','','ABIERTA']];
 ctx.ensureManufacturingOrderSheets_=()=>({orders:{getDataRange:()=>({getValues:()=>values}),getRange:(r,col)=>({setValues:v=>writes.push({col,v}),setValue(){}})}});

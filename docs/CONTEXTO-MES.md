@@ -227,3 +227,7 @@ Existen pruebas en `tests/order-pigment.cjs`, `tests/order-material-flow.cjs` y 
 Lee este archivo y la documentación específica antes de proponer cambios. Comprueba la versión del repositorio: una copia en ChatGPT puede estar desactualizada. Distingue acuerdos, implementación comprobada y propuestas. Revisa código y pruebas antes de afirmar que una función existe.
 
 Conserva los identificadores y URLs de QR ya distribuidos, la separación pública y privada, las instantáneas de lotes y la protección frente a movimientos duplicados. No cambies stock ni datos históricos como efecto secundario de probar impresión o pesaje. No incluyas credenciales en código o conversaciones. Documenta las modificaciones funcionales en este mismo archivo y explica qué se ha probado y qué queda pendiente.
+
+## Preparación de materias primas por línea — 09/11/2026
+
+Publicado en versiones 63 (planta/QR) y 64 (privada). Cada línea muestra pendiente/asignada y sus lotes; cabecera con líneas preparadas. Pesaje bloqueado en UI y servidor hasta configurar PE y decidir pigmento. Guardar actualiza solo esa línea y confirma el resultado. Véase [Materias primas por OF](MATERIAS-PRIMAS-POR-OF.md). No cambia stock, equipos, URLs ni registros históricos.

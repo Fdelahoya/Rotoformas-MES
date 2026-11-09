@@ -11,6 +11,7 @@ const fixture=[
   {id:'OF-1',sku:'TRAMO',product:'Tramo',client:'Cliente A',salesOrderNumber:'SO208',reference:'Parque Norte',status:'ABIERTA',finishedLot:'L-B',theoreticalWeight:12,targetQuantity:2,producedQuantity:0,quality:{measured:0}},
   {id:'OF-2',sku:'CODO "90"',product:'Codo <90>',client:'Cliente A',salesOrderNumber:'SO209',reference:'Parque Sur',status:'ABIERTA',finishedLot:'L-C',theoreticalWeight:8,targetQuantity:4,producedQuantity:0,quality:{measured:0}}
 ];
+fixture.forEach(o=>o.materials={ready:true,pe:{sku:'PE NATURAL',lot:'PE-A'}});
 let {c,el,runner,captured}=ui('PlantWeightPage.html');c.fixture={orders:fixture};vm.runInContext('data=fixture;render()',c);
 assert.equal((el('orders').innerHTML.match(/<article/g)||[]).length,2);
 assert.equal((el('orders').innerHTML.match(/>Pesar<\/button>/g)||[]).length,3);
@@ -36,3 +37,10 @@ function checkHandlers(markup){for(const m of markup.matchAll(/onclick="([^"]*)"
 checkHandlers(el('ordersList').innerHTML);
 c.orderLineAction('detail',0);runner.success({order:fixture[0],productions:[],quality:{measurements:[],measured:0}});checkHandlers(el('orderDetail').innerHTML);
 console.log('PASS: compact grouped cards, same customer/model in distinct orders, explicit SKU in weight/material actions, escaped display and handlers, order search and traceability model chooser.');
+
+// Pending sibling cannot open weighing; ready sibling remains usable.
+fixture[0].materials={ready:false};c.renderOrders();assert.match(el('ordersList').innerHTML,/Preparación: 1 de 2 líneas listas/);assert.match(el('ordersList').innerHTML,/Pendiente de materias primas/);el('weightDialog').open=false;c.openWeightDialog('OF-1',fixture[0].sku);assert.equal(el('weightDialog').open,false);c.openWeightDialog('OF-1','TRAMO');assert.equal(el('weightDialog').open,true);
+({c,el}=ui('PlantWeightPage.html'));c.fixture={orders:fixture};vm.runInContext('data=fixture;render()',c);assert.match(el('orders').innerHTML,/Preparación: 1 de 2 líneas listas/);el('operator').value='Emilio';c.openWeightLine(0);assert(!el('weightDialog').open);c.openWeightLine(1);assert(el('weightDialog').open);assert(!el('orders').innerHTML.includes('Pigmento:'));
+console.log('PASS: per-line readiness, blocked dialog entry, ready siblings and hidden untracked pigment.');
+
+({c,el,runner,captured}=ui('LotsWebAppPage.html'));c.fixture={orders:fixture,summary:{open:2,closed:0,total:2}};el('orderStatus').value='ABIERTA';vm.runInContext('ordersData=fixture;orderPigmentData={order:fixture.orders[0]}',c);el('pigmentMode').value='OFF';el('peProduct').value='PE';el('peLot').value='A';c.saveOrderPigment();assert.equal(el('savePigmentButton').textContent,'Guardando…');const calls=captured.length;c.saveOrderPigment();assert.equal(captured.length,calls);runner.success({order:{...fixture[0],materials:{ready:true,pe:{sku:'PE NATURAL',lot:'A'}}}});assert.match(el('ordersList').innerHTML,/Preparación: 2 de 2 líneas listas/);assert.equal(captured.length,calls);assert.match(el('notice').textContent,/Materias primas guardadas/);console.log('PASS: save feedback, duplicate submit guard and targeted merge without catalog reload.');
