@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rotoformas · Enlaces QR</title>
+<style>body{margin:0;background:#f3f6f8;font:16px/1.5 Arial,sans-serif;color:#153d50}main{max-width:520px;margin:8vh auto;padding:30px;background:#fff;border-radius:16px}h1{font-size:26px}label{display:block;margin-top:20px;font-weight:700}input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #adc0ce;border-radius:8px;font:inherit}button{margin-top:24px;padding:12px 20px;background:#1854d6;color:white;border:0;border-radius:8px;font:inherit;cursor:pointer}button:disabled{opacity:.5}#result{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:20px}</style>
+</head><body><main><h1>Conectar enlaces QR</h1><p>Configuración de <strong>qr.rotoformas.com</strong>. El enlace de prueba permite comprobar la conexión sin enviar etiquetas.</p>
+<form id="settings"><label for="token">Clave privada del servicio</label><input id="token" type="password" autocomplete="off" required pattern="[a-f0-9]{64}"><label for="lot">Lote existente para la comprobación</label><input id="lot" type="text" maxlength="200" required><button id="connect" type="submit">Comprobar y activar</button></form><div id="result" role="status" aria-live="polite"></div>
+</main><script>
+document.getElementById('settings').addEventListener('submit',function(event){
+ event.preventDefault();const button=document.getElementById('connect'),token=document.getElementById('token'),result=document.getElementById('result');
+ button.disabled=true;result.textContent='Comprobando la conexión…';
+ google.script.run.withSuccessHandler(function(response){token.value='';button.disabled=false;result.textContent='Enlaces QR activados.\nEnlace verificado: '+response.url+'\nNo se ha enviado ninguna etiqueta.';})
+ .withFailureHandler(function(){token.value='';button.disabled=false;result.textContent='No se ha podido activar. Comprueba la clave y el servicio.';})
+ .connectShortQrService(token.value,document.getElementById('lot').value);
+});
+</script></body></html>

@@ -1,9 +1,9 @@
 /** Pigmento por OF. La configuración no modifica consumos ni registros anteriores. */
-function getOrderPigmentOptions(orderId) {
+function getOrderPigmentOptions(orderId, sku) {
   assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = readManufacturingOrders_(sheets.orders, sheets.production).find(o => o.id === safeStr_(orderId));
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), orderId, sku);
   if (!order) throw new Error('No encuentro la OF.');
   const products = holdedRequest_('get', '/products');
   if (!Array.isArray(products)) throw new Error('No se pudo consultar el catálogo de pigmentos.');
@@ -19,7 +19,7 @@ function setOrderPigment(input) {
   const id = safeStr_(input && input.orderId);
   const mode = safeStr_(input && input.mode);
   if (!['ON', 'OFF'].includes(mode)) throw new Error('Selecciona el seguimiento de pigmento.');
-  const options = getOrderPigmentOptions(id);
+  const options = getOrderPigmentOptions(id, input.sku);
   const pe = (options.peProducts || []).find(p => p.id === safeStr_(input.peProductId));
   const peLot = pe && pe.lots.find(l => l.id === safeStr_(input.peLotId));
   if (!pe || !peLot) throw new Error('Selecciona el PE y un lote existente en Holded.');
@@ -48,7 +48,7 @@ function setOrderPigment(input) {
   try {
     const sheets = ensureManufacturingOrderSheets_(SpreadsheetApp.getActiveSpreadsheet());
     const values = sheets.orders.getDataRange().getValues();
-    const index = values.findIndex((r,i) => i > 0 && safeStr_(r[0]) === id);
+    const index = values.findIndex((r,i) => i > 0 && safeStr_(r[0]) === id && normalizeKey_(r[2]) === normalizeKey_(options.order.sku));
     if (index < 0) throw new Error('No encuentro la OF.');
     if (normalizeKey_(values[index][2]) !== normalizeKey_(options.order.sku)) throw new Error('La referencia de la OF ha cambiado. Vuelve a abrir su configuración.');
     if (safeStr_(values[index][7]) !== MANUFACTURING_ORDERS.openStatus) throw new Error('La OF está cerrada.');

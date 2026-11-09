@@ -110,6 +110,7 @@ const MIGRATION_PRODUCTION_PREMIUM_SIMPLE = [
  * Esta función únicamente realiza peticiones GET; no modifica Holded.
  */
 function previewMigrationProductionPortatapas() {
+  assertLotsWebAppAccess_();
   const expectedSku = MIGRATION_PRODUCTION_PREVIEW_SKU;
   const catalog = holdedV2Request_(
     "get",
@@ -173,6 +174,7 @@ function previewMigrationProductionPortatapas() {
  * Compara etiquetas STK/TY con criterio OR y AND sin modificar productos.
  */
 function previewMigrationProductionNextBatch() {
+  assertLotsWebAppAccess_();
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) {
     throw new Error("Holded producción no devolvió un catálogo válido.");
@@ -236,6 +238,7 @@ function previewMigrationProductionNextBatch() {
 
 /** Inventario de solo lectura de todos los productos con etiqueta TC. */
 function previewMigrationProductionTc() {
+  assertLotsWebAppAccess_();
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) {
     throw new Error("Holded producción no devolvió un catálogo válido.");
@@ -278,6 +281,7 @@ function previewMigrationProductionTc() {
 
 /** Inventario de solo lectura de todas las materias primas con etiqueta MP. */
 function previewMigrationProductionMp() {
+  assertLotsWebAppAccess_();
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) {
     throw new Error("Holded producción no devolvió un catálogo válido.");
@@ -319,6 +323,7 @@ function previewMigrationProductionMp() {
 
 /** Preview V2 exacto de PORTATAPAS OVAL2000. Solo lectura. */
 function previewMigrationProductionOval2000() {
+  assertLotsWebAppAccess_();
   const source = holdedV2Request_(
     "get",
     "/products/" + MIGRATION_PRODUCTION_OVAL2000_ID
@@ -337,6 +342,7 @@ function previewMigrationProductionOval2000() {
 
 /** Convierte únicamente PORTATAPAS OVAL2000 de simple a lotes. */
 function migrateProductionOval2000ToLots() {
+  assertLotsWebAppAccess_();
   const source = previewMigrationProductionOval2000();
   if (source.kind !== "simple" ||
       (Array.isArray(source.variants) && source.variants.length)) {
@@ -422,6 +428,7 @@ function migrateProductionOval2000ToLots() {
 
 /** Convierte a lotes los 12 productos STK/TY autorizados con stock cero. */
 function migrateProductionTaggedZeroStockToLots() {
+  assertLotsWebAppAccess_();
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
   const sources = MIGRATION_PRODUCTION_TAGGED_ZERO_STOCK.map(expected => {
@@ -535,6 +542,7 @@ function migrateProductionTaggedZeroStockToLots() {
 
 /** Convierte a lotes los dos productos STK/TY autorizados con stock positivo. */
 function migrateProductionTaggedPositiveStockToLots() {
+  assertLotsWebAppAccess_();
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
   const sources = MIGRATION_PRODUCTION_TAGGED_POSITIVE_STOCK.map(expected => {
@@ -640,6 +648,7 @@ function migrateProductionTaggedPositiveStockToLots() {
 
 /** Intenta conservar el stock negativo al convertir los dos últimos STK/TY a lotes. */
 function migrateProductionTaggedNegativeStockToLots() {
+  assertLotsWebAppAccess_();
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
   const sources = MIGRATION_PRODUCTION_TAGGED_NEGATIVE_STOCK.map(expected => {
@@ -748,6 +757,7 @@ function migrateProductionTaggedNegativeStockToLots() {
 
 /** Convierte a lotes los 10 productos simples con etiqueta TC. */
 function migrateProductionTcSimpleToLots() {
+  assertLotsWebAppAccess_();
   return migrationProductionMigrateSimpleBatch_(
     MIGRATION_PRODUCTION_TC_SIMPLE,
     "TC simples",
@@ -758,6 +768,7 @@ function migrateProductionTcSimpleToLots() {
 
 /** Convierte a lotes las seis materias primas con etiqueta MP. */
 function migrateProductionMpSimpleToLots() {
+  assertLotsWebAppAccess_();
   return migrationProductionMigrateSimpleBatch_(
     MIGRATION_PRODUCTION_MP_SIMPLE,
     "MP simples",
@@ -768,6 +779,7 @@ function migrateProductionMpSimpleToLots() {
 
 /** Convierte a lotes los 12 productos premium simples auditados (MH y SL). */
 function migrateProductionPremiumSimpleToLots() {
+  assertLotsWebAppAccess_();
   return migrationProductionMigrateSimpleBatch_(
     MIGRATION_PRODUCTION_PREMIUM_SIMPLE,
     "Premium simples MH/SL",
@@ -889,6 +901,7 @@ function migrationProductionMigrateSimpleBatch_(expectedProducts, label, resultP
 
 /** Divide las 9 familias TC en 18 productos independientes con lotes. */
 function migrateProductionTcVariantFamiliesToLots() {
+  assertLotsWebAppAccess_();
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();
   const normalizeTag = value => normalize(value).replace(/^#+/, "");
   const families = MIGRATION_PRODUCTION_TC_VARIANT_FAMILIES.map(expectedFamily => {
@@ -1033,6 +1046,7 @@ function migrateProductionTcVariantFamiliesToLots() {
 
 /** Diagnóstico de solo lectura de campos especiales en las variantes TC. */
 function previewMigrationProductionTcVariantDetails() {
+  assertLotsWebAppAccess_();
   const result = MIGRATION_PRODUCTION_TC_VARIANT_FAMILIES.map(expectedFamily => {
     const source = holdedV2Request_("get", "/products/" + expectedFamily.id);
     return {
@@ -1061,6 +1075,7 @@ function previewMigrationProductionTcVariantDetails() {
  * El borrado del producto original es permanente.
  */
 function migrateProductionPortatapasToLots() {
+  assertLotsWebAppAccess_();
   const preview = previewMigrationProductionPortatapas();
   const source = preview.detail;
   const normalize = value => String(value == null ? "" : value).trim().toUpperCase();

@@ -21,6 +21,20 @@ const LOTS_APP = {
 function doGet(e) {
   const mode = safeStr_(e && e.parameter && e.parameter.modo).toLowerCase();
   const email = safeStr_(Session.getActiveUser().getEmail()).toLowerCase();
+  const reference = traceabilityReference_(e);
+  if (mode === "config-qr") {
+    assertLotsWebAppAccess_();
+    return HtmlService.createTemplateFromFile("ShortLinksSettings").evaluate()
+      .setTitle("Rotoformas · Enlaces QR");
+  }
+  if (mode !== "pesaje" && reference && !LOTS_APP.allowedUsers.includes(email)) {
+    const guest = HtmlService.createTemplateFromFile("GuestTraceabilityPage");
+    guest.records = readGuestTraceability_(reference);
+    guest.productImage = guest.records.length ? readGuestProductImage_(reference) : "";
+    guest.companyUrl = "https://script.google.com/a/macros/rotoformas.com/s/AKfycbyNA69u8JNmcqRaAct4vNMYey5dXCSKa4L-5f9wwcV2FG-zrBjnWnsfUlzKHoIL4ek86w/exec?lote=" + encodeURIComponent(reference);
+    return guest.evaluate().setTitle("Rotoformas · Consulta de lote")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   if (mode === "pesaje" || !LOTS_APP.allowedUsers.includes(email)) {
     return HtmlService.createTemplateFromFile("PlantWeightPage").evaluate()
       .setTitle("Rotoformas · Pesaje en planta")
@@ -28,10 +42,21 @@ function doGet(e) {
   }
   assertLotsWebAppAccess_();
   const template = HtmlService.createTemplateFromFile("LotsWebAppPage");
-  template.initialTraceabilityReference = safeStr_(e && e.parameter && e.parameter.lote);
+  template.initialTraceabilityReference = reference;
   return template.evaluate()
     .setTitle("Rotoformas MES")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Los QR nuevos usan ?lote/ sin '=' para no truncar la variable del laser LC. */
+function traceabilityReference_(e) {
+  const legacy = safeStr_(e && e.parameter && e.parameter.lote);
+  if (legacy) return legacy;
+  const query = safeStr_(e && e.queryString).split("&")[0];
+  const key = Object.keys(e && e.parameter || {}).find(name => name.startsWith("lote/")) || "";
+  const path = query.startsWith("lote/") ? query : key || safeStr_(e && e.pathInfo).replace(/^\/+/, "");
+  if (!path.startsWith("lote/")) return "";
+  try { return safeStr_(decodeURIComponent(path.slice(5))); } catch (_) { return ""; }
 }
 
 function getLotsDashboardData() {
@@ -317,4 +342,76 @@ function formatLotsDate_(value) {
   const date = value instanceof Date ? value : new Date(value);
   if (isNaN(date.getTime())) return safeStr_(value);
   return Utilities.formatDate(date, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm");
+}
+
+/** Consulta pública de solo lectura. No acepta números de OF ni devuelve datos internos. */
+function readGuestTraceability_(reference) {
+  const lot = safeStr_(reference);
+  if (!lot || lot.length > 200) return [];
+  const ss = hardwareSpreadsheet_();
+  const orders = ss.getSheetByName(MANUFACTURING_ORDERS.ordersSheet);
+  const production = ss.getSheetByName(MANUFACTURING_ORDERS.productionSheet);
+  if (!orders || !production) return [];
+  // Coincidencia exacta del lote, sin búsquedas parciales ni enumeración de otras OF.
+  const matches = orders.getDataRange().getValues().slice(1)
+    .filter(row => safeStr_(row[18]) === lot && safeStr_(row[0]));
+  if (matches.length !== 1) return [];
+  const order = matches[0];
+  const seen = new Set();
+  return production.getDataRange().getValues().slice(1)
+    .filter(row => safeStr_(row[2]) === safeStr_(order[0]) &&
+      safeStr_(row[8]) === lot && numberOrZero_(row[4]) > 0)
+    .map(row => ({
+      date: formatManufacturingOrderDate_(row[0], "dd/MM/yyyy"),
+      peLot: safeStr_(row[6]),
+      ptLot: lot,
+      product: safeStr_(order[3])
+    }))
+    .filter(record => {
+      const key = JSON.stringify(record);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.date.split("/").reverse().join("").localeCompare(b.date.split("/").reverse().join("")))
+    .slice(-1);
+}
+
+/** Solo devuelve la URL HTTPS de la foto principal; las credenciales quedan en el servidor. */
+function readGuestProductImage_(reference) {
+  try {
+    const ss = hardwareSpreadsheet_();
+    const orders = ss.getSheetByName(MANUFACTURING_ORDERS.ordersSheet);
+    const raw = ss.getSheetByName("Holded Raw");
+    if (!orders || !raw) return "";
+    const matches = orders.getDataRange().getValues().slice(1)
+      .filter(row => safeStr_(row[18]) === safeStr_(reference));
+    if (matches.length !== 1) return "";
+    const values = raw.getDataRange().getValues();
+    const skuIdx = getColIndex_(values[0], "^sku holded$");
+    const idIdx = getColIndex_(values[0], "^productid holded$");
+    const parentIdx = getColIndex_(values[0], "^productid padre$");
+    if (skuIdx < 0 || idIdx < 0) return "";
+    const products = values.slice(1).filter(row => safeStr_(row[skuIdx]) === safeStr_(matches[0][2]));
+    if (products.length !== 1) return "";
+    const product = products[0];
+    const id = safeStr_(parentIdx >= 0 && product[parentIdx]) || safeStr_(product[idIdx]);
+    if (!/^[a-f0-9]{24}$/i.test(id)) return "";
+    const cache = CacheService.getScriptCache();
+    const key = "GUEST_PRODUCT_IMAGE_V1|" + id;
+    const cached = cache.get(key);
+    if (cached !== null) return cached === "NONE" ? "" : cached;
+    const image = holdedV2Request_("get", "/products/" + encodeURIComponent(id) + "/image");
+    const url = safeStr_(image && image.sizes && image.sizes.medium && image.sizes.medium.url) ||
+      safeStr_(image && image.url);
+    // No se admite una URL de API autenticada, HTML, credenciales ni contenido ejecutable.
+    if (!/^https:\/\/[a-z0-9.-]+(?::443)?\/[^\s<>"']*$/i.test(url) ||
+        /^https:\/\/api\.holded\.com\//i.test(url)) return "";
+    cache.put(key, url, 600);
+    return url;
+  } catch (error) {
+    // La ficha de lote sigue disponible cuando Holded no tiene foto o no responde.
+    console.warn("No se pudo recuperar la foto pública del producto de Holded.");
+    return "";
+  }
 }

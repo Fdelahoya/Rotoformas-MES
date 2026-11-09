@@ -253,6 +253,7 @@ function getManufacturingCostPreviewHeaders_() {
 }
 
 function previewManufacturingCosts() {
+  assertLotsWebAppAccess_();
   const ss = getHoldedSpreadsheet_();
   const result = buildManufacturingCostRows_(ss);
 
@@ -606,6 +607,7 @@ function verifyHoldedPrice_(productId, variantId, sku, expectedPrice) {
 }
 
 function repairHoldedPricesFromBackup() {
+  assertLotsWebAppAccess_();
   const ss = getHoldedSpreadsheet_();
   const current = readHoldedRawForCosts_(ss, MANUFACTURING_COSTS.rawSheet);
   const backup = readHoldedRawForCosts_(ss, MANUFACTURING_COSTS.priceBackupSheet);
@@ -746,6 +748,7 @@ function writeManufacturingCostLog_(ss, rows) {
 }
 
 function applySelectedManufacturingCosts() {
+  assertLotsWebAppAccess_();
   const ss = getHoldedSpreadsheet_();
   const preview = readSelectedManufacturingCosts_(ss);
   const currentResult = buildManufacturingCostRows_(ss);

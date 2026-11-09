@@ -20,6 +20,7 @@ const MANUFACTURING_CATALOG_CACHE_PROPERTY = "MANUFACTURING_CATALOG_CACHE";
 
 /** Consulta temporal de solo lectura para validar pedidos de venta de Tecnospra. */
 function previewTecnospraSalesOrders() {
+  assertLotsWebAppAccess_();
   const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
   if (!Array.isArray(documents)) {
     throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
@@ -59,6 +60,7 @@ function previewTecnospraSalesOrders() {
 
 /** Lee el detalle de los dos pedidos más recientes encontrados en el preview. */
 function previewTecnospraSalesOrderDetails() {
+  assertLotsWebAppAccess_();
   const orders = previewTecnospraSalesOrders().slice(0, 2);
   const details = orders.map(order =>
     holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(order.id))
@@ -78,31 +80,42 @@ function getManufacturingOrdersData() {
     clients: readPremiumManufacturingClients_(orders),
     catalog: readManufacturingOrderCatalog_(ss),
     summary: {
-      open: orders.filter(order => order.status === MANUFACTURING_ORDERS.openStatus).length,
-      closed: orders.filter(order => order.status === MANUFACTURING_ORDERS.closedStatus).length,
-      total: orders.length
+      open: groupManufacturingOrders_(orders).filter(order => order.status === MANUFACTURING_ORDERS.openStatus).length,
+      closed: groupManufacturingOrders_(orders).filter(order => order.status === MANUFACTURING_ORDERS.closedStatus).length,
+      total: groupManufacturingOrders_(orders).length
     }
   };
 }
 
 /** Preview de solo lectura para la primera OF de OX. No envía ningún PUT. */
 function previewOxDisairFinishedLot() {
+  assertLotsWebAppAccess_();
   return previewFinishedProductLotCreation_("OF-2026-0002");
 }
 
 /** Crea en Holded el lote terminado de la primera OF de OX y lo verifica. */
 function createOxDisairFinishedLot() {
+  assertLotsWebAppAccess_();
   return createFinishedProductLot_("OF-2026-0002");
 }
 
 /** Reintento seguro para cualquier OF ya creada; nunca duplica el lote. */
-function ensureManufacturingOrderFinishedLot(orderId) {
+function ensureManufacturingOrderFinishedLot(orderId, sku) {
   assertLotsWebAppAccess_();
-  return createFinishedProductLot_(orderId);
+  const sheets = ensureManufacturingOrderSheets_(SpreadsheetApp.getActiveSpreadsheet());
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders,sheets.production),orderId,sku);
+  try {
+    const result = createFinishedProductLot_(orderId,order.sku);
+    setManufacturingLotState_(orderId,order.sku,'LISTO','');
+    return result;
+  } catch(error) {
+    setManufacturingLotState_(orderId,order.sku,'ERROR',error.message || String(error));
+    throw error;
+  }
 }
 
-function createFinishedProductLot_(orderId) {
-  const preview = previewFinishedProductLotCreation_(orderId);
+function createFinishedProductLot_(orderId, sku) {
+  const preview = previewFinishedProductLotCreation_(orderId, sku);
   if (preview.action === "NO_CAMBIAR") return preview;
 
   const updated = holdedV2Request_("put", "/products/" + encodeURIComponent(preview.productId), preview.payload);
@@ -137,11 +150,10 @@ function createFinishedProductLot_(orderId) {
  * Construye el reemplazo completo exigido por PUT /api/v2/products/{id} para
  * añadir el lote terminado de una OF. Solo consulta y registra el borrador.
  */
-function previewFinishedProductLotCreation_(orderId) {
+function previewFinishedProductLotCreation_(orderId, sku) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = readManufacturingOrders_(sheets.orders, sheets.production)
-    .find(item => item.id === safeStr_(orderId));
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), orderId, sku);
   if (!order) throw new Error("No encuentro la OF " + safeStr_(orderId) + ".");
   if (!order.finishedLot) throw new Error("La OF no tiene lote terminado propuesto.");
 
@@ -238,126 +250,45 @@ function getPremiumSalesOrderProposals() {
   assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const existingLineIds = readImportedSalesOrderLineIds_(sheets.orders);
+  const importedOrders = new Set(readManufacturingOrders_(sheets.orders,sheets.production).map(o=>o.salesOrderId).filter(Boolean));
+  const imported = readImportedSalesOrderLineIds_(sheets.orders);
   const catalog = readManufacturingOrderCatalog_(ss);
-  const catalogBySku = {};
-  catalog.forEach(item => { catalogBySku[normalizeKey_(item.sku)] = item; });
-
-  const documents = holdedRequest_("get", "/documents/salesorder?sort=created-desc");
-  if (!Array.isArray(documents)) throw new Error("Holded no devolvió una lista válida de pedidos de venta.");
-
-  // La trazabilidad depende del producto, no del cliente: cualquier pedido
-  // pendiente con un producto terminado activo y gestionado por lotes puede
-  // originar una OF.
-  const candidates = documents
-    .filter(doc => {
-      if (Number(doc && doc.status) !== 0) return false;
-      const summaryLines = Array.isArray(doc && doc.items)
-        ? doc.items
-        : (Array.isArray(doc && doc.products) ? doc.products : []);
-      // Algunas respuestas antiguas de Holded no incluyen líneas en el
-      // listado. En ese caso conservamos el pedido y lo validamos al leer
-      // su detalle.
-      if (!summaryLines.length) return true;
-      return summaryLines.some(line => catalogBySku[normalizeKey_(line && line.sku)]);
-    })
-    .slice(0, 50);
-
+  const documents = holdedRequest_('get','/documents/salesorder?sort=created-desc');
+  if (!Array.isArray(documents)) throw new Error('Holded no devolvió una lista válida de pedidos.');
   const proposals = [];
-  candidates.forEach(summary => {
-    const detail = holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(summary.id));
-    const products = Array.isArray(detail && detail.products) ? detail.products : [];
-    products.forEach((line, index) => {
-      const lineId = safeStr_(line.line_id) || `${safeStr_(detail.id)}:${index}`;
-      const sku = safeStr_(line.sku);
-      const catalogItem = catalogBySku[normalizeKey_(sku)] || null;
-      if (!catalogItem || existingLineIds.has(lineId)) return;
-      proposals.push({
-        salesOrderId: safeStr_(detail.id),
-        salesOrderNumber: safeStr_(detail.docNumber || summary.docNumber),
-        salesOrderLineId: lineId,
-        clientId: safeStr_(detail.contact),
-        client: safeStr_(detail.contactName),
-        sku,
-        product: safeStr_(line.name || catalogItem.product),
-        quantity: numberOrZero_(line.units),
-        orderDate: formatManufacturingOrderEpochDate_(detail.date),
-        orderDateDisplay: formatManufacturingOrderEpochDate_(detail.date, "dd/MM/yyyy"),
-        requestedDate: detail.forecastDate || detail.deliverydate
-          ? formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate)
-          : "",
-        requestedDateDisplay: detail.forecastDate || detail.deliverydate
-          ? formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate, "dd/MM/yyyy")
-          : "",
-        description: safeStr_(line.desc)
-      });
-    });
+  documents.filter(d=>Number(d.status)===0 && !importedOrders.has(safeStr_(d.id))).slice(0,50).forEach(summary=>{
+    const detail = holdedRequest_('get','/documents/salesorder/'+encodeURIComponent(summary.id));
+    if (!detail || Number(detail.status)!==0) return;
+    const lines = buildSalesOrderManufacturingLines_(detail,catalog);
+    const excludedLines = salesOrderExcludedLines_(detail,catalog);
+    if ((!lines.length && !excludedLines.length) || lines.some(l=>l.salesOrderLineIds.some(id=>imported.has(id)))) return;
+    proposals.push({salesOrderId:safeStr_(detail.id),salesOrderNumber:safeStr_(detail.docNumber || summary.docNumber),
+      clientId:safeStr_(detail.contact),client:safeStr_(detail.contactName),lines,excludedLines,
+      fingerprint:salesOrderManufacturingFingerprint_(lines),
+      orderDateDisplay:formatManufacturingOrderEpochDate_(detail.date,'dd/MM/yyyy'),
+      requestedDate:formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate),
+      requestedDateDisplay:formatManufacturingOrderEpochDate_(detail.forecastDate || detail.deliverydate,'dd/MM/yyyy')});
   });
-  return {
-    generatedAt: formatLotsDate_(new Date()),
-    clients: readPremiumManufacturingClients_(),
-    catalog,
-    proposals: proposals.sort((a, b) => b.salesOrderNumber.localeCompare(a.salesOrderNumber))
-  };
+  return {generatedAt:formatLotsDate_(new Date()),clients:readPremiumManufacturingClients_(),catalog,
+    proposals:proposals.sort((a,b)=>b.salesOrderNumber.localeCompare(a.salesOrderNumber))};
 }
 
 function createManufacturingOrderFromSalesOrderLine(input) {
   assertLotsWebAppAccess_();
-  const value = input || {};
-  const salesOrderId = safeStr_(value.salesOrderId);
-  const salesOrderLineId = safeStr_(value.salesOrderLineId);
-  if (!salesOrderId || !salesOrderLineId) throw new Error("Falta identificar el pedido o su línea.");
-
-  const detail = holdedRequest_("get", "/documents/salesorder/" + encodeURIComponent(salesOrderId));
-  if (!detail || Number(detail.status) !== 0) throw new Error("El pedido ya no está pendiente en Holded.");
-  const products = Array.isArray(detail.products) ? detail.products : [];
-  const line = products.find((item, index) =>
-    (safeStr_(item.line_id) || `${salesOrderId}:${index}`) === salesOrderLineId
-  );
-  if (!line) throw new Error("La línea ya no existe en el pedido de Holded.");
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ensureManufacturingOrderSheets_(ss);
-  if (readImportedSalesOrderLineIds_(sheets.orders).has(salesOrderLineId)) {
-    throw new Error("Esta línea del pedido ya tiene una OF creada.");
-  }
-  const catalogItem = readManufacturingOrderCatalog_(ss)
-    .find(item => normalizeKey_(item.sku) === normalizeKey_(line.sku));
-  if (!catalogItem) throw new Error("El producto no está disponible como referencia con gestión por lotes.");
-
-  const notes = [
-    safeStr_(line.desc),
-    safeStr_(value.notes)
-  ].filter(Boolean).join(" · ");
-  return createManufacturingOrder({
-    client: safeStr_(detail.contactName),
-    clientId: safeStr_(detail.contact),
-    sku: safeStr_(line.sku),
-    product: safeStr_(line.name || catalogItem.product),
-    targetQuantity: numberOrZero_(line.units),
-    color: safeStr_(value.color),
-    targetDate: safeStr_(value.targetDate),
-    status: MANUFACTURING_ORDERS.openStatus,
-    notes,
-    salesOrderNumber: safeStr_(detail.docNumber),
-    salesOrderId,
-    salesOrderLineId,
-    salesOrderQuantity: numberOrZero_(line.units)
-  });
+  throw new Error('Actualiza la aplicación: los pedidos se crean como una OF con todas sus piezas.');
 }
 
-function getManufacturingOrderDetail(orderId) {
+function getManufacturingOrderDetail(orderId, sku) {
   assertLotsWebAppAccess_();
   const id = safeStr_(orderId);
   if (!id) throw new Error("No se ha indicado el número de OF.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = readManufacturingOrders_(sheets.orders, sheets.production)
-    .find(item => item.id === id);
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), id, sku);
   if (!order) throw new Error(`No encuentro la orden ${id}.`);
   return {
     order,
-    productions: readProductionsForOrder_(sheets.production, id),
+    productions: readProductionsForOrder_(sheets.production, id, order.sku),
     quality: getManufacturingQualityData_(sheets.quality, order)
   };
 }
@@ -370,18 +301,26 @@ function recordManufacturingPieceWeight(input) {
 /** Vista pública y limitada para el puesto de pesaje de planta. */
 function getPlantWeightOrders() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ensureManufacturingOrderSheets_(ss);
+  // Una consulta anonima no crea hojas ni cambia cabeceras.
+  const sheets = {orders:ss.getSheetByName(MANUFACTURING_ORDERS.ordersSheet),
+    production:ss.getSheetByName(MANUFACTURING_ORDERS.productionSheet),
+    quality:ss.getSheetByName(MANUFACTURING_ORDERS.qualitySheet)};
+  if (!sheets.orders || !sheets.production || !sheets.quality) {
+    throw new Error('La configuracion de planta requiere revision de un administrador.');
+  }
   const orders = readManufacturingOrders_(sheets.orders, sheets.production)
     .filter(order => order.status === MANUFACTURING_ORDERS.openStatus)
     .map(order => ({
       id: order.id,
+      client: order.client, salesOrderNumber: order.salesOrderNumber, reference: order.reference,
+      targetDateDisplay: order.targetDateDisplay, color: order.color, instructions: order.notes, lotState: order.lotState,
       sku: order.sku,
       product: order.product,
       finishedLot: order.finishedLot,
       targetQuantity: order.targetQuantity,
       producedQuantity: order.producedQuantity,
       theoreticalWeight: readManufacturingTheoreticalWeight_(ss, order.sku),
-      quality: getManufacturingQualityData_(sheets.quality, order)
+      quality: {measured: getManufacturingQualityData_(sheets.quality, order).measured}
     }));
   return { generatedAt: formatLotsDate_(new Date()), orders };
 }
@@ -403,9 +342,10 @@ function recordManufacturingPieceWeight_(input, actor) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = readManufacturingOrders_(sheets.orders, sheets.production)
-    .find(item => item.id === orderId);
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), orderId, data.sku);
   if (!order) throw new Error(`No encuentro la orden ${orderId}.`);
+  if (order.status !== MANUFACTURING_ORDERS.openStatus) throw new Error('La OF está cerrada. Actualiza la pantalla.');
+  if (order.lotState && order.lotState !== 'LISTO') throw new Error('El lote de esta pieza está pendiente de preparar en Holded.');
   const theoreticalWeight = readManufacturingTheoreticalWeight_(ss, order.sku);
   if (!(theoreticalWeight > 0)) {
     throw new Error(`El producto ${order.sku} no tiene un peso teórico válido en Holded Raw.`);
@@ -414,6 +354,11 @@ function recordManufacturingPieceWeight_(input, actor) {
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
+    const current = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), orderId, order.sku);
+    if (current.status !== MANUFACTURING_ORDERS.openStatus || current.finishedLot !== order.finishedLot ||
+        (current.lotState && current.lotState !== 'LISTO')) {
+      throw new Error('La OF o su lote han cambiado. Actualiza la pantalla antes de pesar.');
+    }
     const values = sheets.quality.getDataRange().getValues();
     let pieceNumber = 1;
     for (let row = 1; row < values.length; row++) {
@@ -469,11 +414,12 @@ function getTraceabilityRecord(reference) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const orders = readManufacturingOrders_(sheets.orders, sheets.production);
-  const order = orders.find(item =>
-    normalizeKey_(item.finishedLot) === query || normalizeKey_(item.id) === query
-  );
+  const matches = orders.filter(item => normalizeKey_(item.finishedLot) === query || normalizeKey_(item.id) === query);
+  if (matches.length > 1) return {selection:true, orderId:matches[0].id,
+    lines:matches.map(o=>({sku:o.sku,product:o.product,finishedLot:o.finishedLot}))};
+  const order = matches[0];
   if (!order) throw new Error("No encuentro una orden de fabricación para ese lote.");
-  const productions = readProductionsForOrder_(sheets.production, order.id);
+  const productions = readProductionsForOrder_(sheets.production, order.id, order.sku);
   const quality = getManufacturingQualityData_(sheets.quality, order);
   const timeline = [{ date: order.createdAt, event: "OF creada" }];
   productions.slice().reverse().forEach(item => timeline.push({
@@ -497,6 +443,7 @@ function getTraceabilityRecord(reference) {
 
 function createManufacturingOrder(input) {
   assertLotsWebAppAccess_();
+  if (input && input.salesOrderId) throw new Error('Crea la OF desde Pedidos pendientes para incorporar todas sus piezas.');
   const data = validateManufacturingOrderInput_(input);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
@@ -532,14 +479,14 @@ function createManufacturingOrder(input) {
       data.salesOrderLineId,
       data.salesOrderQuantity,
       finishedLot,
-      "OFF", "", "", "", "", "", "", "", ""
+      "OFF", "", "", "", "", "", "", "", "", safeStr_(input.reference).slice(0,160), "", "PENDIENTE", ""
     ]);
   } finally {
     lock.releaseLock();
   }
 
   try {
-    const lotResult = createFinishedProductLot_(id);
+    const lotResult = ensureManufacturingOrderFinishedLot(id, data.sku);
     return {
       ok: true,
       id,
@@ -563,48 +510,34 @@ function createManufacturingOrder(input) {
 function updateManufacturingOrder(orderId, input) {
   assertLotsWebAppAccess_();
   const id = safeStr_(orderId);
-  if (!id) throw new Error("No se ha indicado el número de OF.");
-  const data = validateManufacturingOrderInput_(input);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
   const lock = LockService.getDocumentLock();
   lock.waitLock(15000);
   try {
+    const line = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders,sheets.production),id,input && input.lineSku);
+    if (normalizeKey_(input.sku)!==normalizeKey_(line.sku)) throw new Error('El SKU está asociado a su lote y no se puede cambiar.');
+    const data = validateManufacturingOrderInput_(Object.assign({},input,{
+      client:line.client,clientId:line.clientId,salesOrderId:line.salesOrderId,
+      salesOrderLineId:line.salesOrderLineId,salesOrderNumber:line.salesOrderNumber
+    }));
     const values = sheets.orders.getDataRange().getValues();
-    let rowNumber = 0;
-    for (let row = 1; row < values.length; row++) {
-      if (safeStr_(values[row][0]) === id) {
-        rowNumber = row + 1;
-        break;
+    const now = new Date(), user = getManufacturingOrderUser_();
+    values.slice(1).forEach((row,index)=>{
+      if (safeStr_(row[0])!==id) return;
+      if (normalizeKey_(row[2])===normalizeKey_(line.sku)) {
+        sheets.orders.getRange(index+2,5).setValue(data.targetQuantity);
+        sheets.orders.getRange(index+2,6).setValue(data.color);
+        sheets.orders.getRange(index+2,9).setValue(data.notes);
       }
-    }
-    if (!rowNumber) throw new Error(`No encuentro la orden ${id}.`);
-    const original = sheets.orders.getRange(rowNumber, 1, 1, 19).getValues()[0];
-    sheets.orders.getRange(rowNumber, 1, 1, 19).setValues([[
-      id,
-      data.client,
-      data.sku,
-      data.product,
-      data.targetQuantity,
-      data.color,
-      data.targetDate || "",
-      data.status,
-      data.notes,
-      original[9] || new Date(),
-      new Date(),
-      original[11] || "",
-      getManufacturingOrderUser_(),
-      data.clientId,
-      original[14] || data.salesOrderNumber,
-      original[15] || data.salesOrderId,
-      original[16] || data.salesOrderLineId,
-      original[17] || data.salesOrderQuantity,
-      original[18] || buildFinishedProductLotName_(data.sku, data.targetDate || original[9], id)
-    ]]);
-    return { ok: true, id };
-  } finally {
-    lock.releaseLock();
-  }
+      // Fecha, referencia y estado pertenecen a la cabecera compartida.
+      sheets.orders.getRange(index+2,7,1,2).setValues([[data.targetDate || '',data.status]]);
+      sheets.orders.getRange(index+2,11).setValue(now);
+      sheets.orders.getRange(index+2,13).setValue(user);
+      sheets.orders.getRange(index+2,29).setValue(safeStr_(input.reference).slice(0,160));
+    });
+    return {ok:true,id};
+  } finally {lock.releaseLock();}
 }
 
 function ensureManufacturingOrderSheets_(ss) {
@@ -616,7 +549,8 @@ function ensureManufacturingOrderSheets_(ss) {
     "Creada por", "Modificada por", "contactId Holded",
     "Pedido venta Holded", "salesOrderId Holded", "salesOrderLineId Holded", "Cantidad pedido",
     "Lote producto terminado", "Seguimiento pigmento", "SKU pigmento OF", "productId pigmento OF", "lotId pigmento OF", "Lote pigmento OF",
-    "SKU PE OF", "productId PE OF", "lotId PE OF", "Lote PE OF"
+    "SKU PE OF", "productId PE OF", "lotId PE OF", "Lote PE OF",
+    "Referencia de trabajo", "Líneas pedido origen JSON", "Estado lote PT", "Detalle lote PT"
   ];
   if (orders.getMaxColumns() < orderHeaders.length) orders.insertColumnsAfter(orders.getMaxColumns(), orderHeaders.length - orders.getMaxColumns());
   if (orders.getLastRow() === 0) {
@@ -681,7 +615,7 @@ function getManufacturingQualityData_(sheet, order) {
   const values = sheet.getDataRange().getValues();
   const measurements = [];
   for (let row = 1; row < values.length; row++) {
-    if (safeStr_(values[row][2]) !== order.id) continue;
+    if (safeStr_(values[row][2]) !== order.id || normalizeKey_(values[row][4]) !== normalizeKey_(order.sku)) continue;
     measurements.push({
       measuredAt: formatLotsDate_(values[row][0]),
       measuredBy: safeStr_(values[row][1]),
@@ -732,7 +666,7 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       .sort((a, b) => a.id.localeCompare(b.id));
     const orders = allOrders.filter(order => order.status === MANUFACTURING_ORDERS.openStatus);
     const ordersById = {};
-    allOrders.forEach(order => { ordersById[order.id] = order; });
+    allOrders.forEach(order => { ordersById[manufacturingLineKey_(order.id, order.sku)] = order; });
     const ordersBySku = {};
     orders.forEach(order => {
       const key = normalizeKey_(order.sku);
@@ -751,12 +685,16 @@ function syncManufacturingOrdersForShift_(ss, productionRows, dateText, shiftTex
       if (!sku || (units <= 0 && moldedUnits <= 0)) return;
       const candidates = ordersBySku[normalizeKey_(sku)] || [];
       const previousRow = previousRows[normalizeKey_(sku)];
-      const previousOrder = previousRow && ordersById[safeStr_(previousRow[2])];
+      const previousOrder = previousRow && ordersById[manufacturingLineKey_(previousRow[2], previousRow[3])];
       if (!previousOrder && candidates.filter(c => c.pendingQuantity > 0).length > 1) {
         throw new Error('Hay varias OF abiertas para ' + sku + '. No se puede asignar automáticamente el consumo a una de ellas.');
       }
+      if (!previousOrder && candidates.length > 1 && !candidates.some(c=>c.pendingQuantity>0)) {
+        throw new Error('Hay varias OF para ' + sku + ' sin cantidad pendiente. Revisa la asignación.');
+      }
       const order = previousOrder || candidates.find(candidate => candidate.pendingQuantity > 0) || candidates[0];
       if (!order) return;
+      if (!previousRow && order.lotState && order.lotState !== 'LISTO') throw new Error('Prepara el lote terminado de ' + order.id + ' · ' + sku + ' antes de registrar producción.');
       const materialSku = safeStr_(item.materialSku) ||
         getManufacturingRecipeComponentSku_(item.recipe, /^PE\s/, sku);
       const pigmentSku = safeStr_(item.pigmentSku) ||
@@ -816,6 +754,7 @@ function getManufacturingRecipeComponentSku_(recipe, pattern, productSku) {
 
 /** Repara solo los campos de lote vacíos de la primera OF de OX; no toca stock ni cantidades. */
 function repairOxDisairManufacturingLots() {
+  assertLotsWebAppAccess_();
   return repairMissingManufacturingLotsForOrder_("OF-2026-0002", {
     materialSku: "PE NATURAL",
     pigmentSku: "PIG RTF073"
@@ -825,8 +764,7 @@ function repairOxDisairManufacturingLots() {
 function repairMissingManufacturingLotsForOrder_(orderId, expectedComponents) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = readManufacturingOrders_(sheets.orders, sheets.production)
-    .find(item => item.id === safeStr_(orderId));
+  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), orderId);
   if (!order) throw new Error("No encuentro la orden " + safeStr_(orderId) + ".");
   const recipes = readMesRecipes_(ss);
   let recipe = recipes[normalizeKey_(order.sku)] || [];
@@ -940,7 +878,8 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
   for (let row = 1; row < productionValues.length; row++) {
     const id = safeStr_(productionValues[row][2]);
     if (!id) continue;
-    productionTotals[id] = (productionTotals[id] || 0) + numberOrZero_(productionValues[row][4]);
+    const key = manufacturingLineKey_(id,productionValues[row][3]);
+    productionTotals[key] = (productionTotals[key] || 0) + numberOrZero_(productionValues[row][4]);
   }
 
   const values = ordersSheet.getDataRange().getValues();
@@ -949,9 +888,10 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
     const id = safeStr_(values[row][0]);
     if (!id) continue;
     const target = numberOrZero_(values[row][4]);
-    const produced = productionTotals[id] || 0;
+    const produced = productionTotals[manufacturingLineKey_(id,values[row][2])] || 0;
     out.push({
       id,
+      reference:safeStr_(values[row][28]), lotState:safeStr_(values[row][30]), lotError:safeStr_(values[row][31]),
       client: safeStr_(values[row][1]),
       sku: safeStr_(values[row][2]),
       product: safeStr_(values[row][3]),
@@ -991,11 +931,11 @@ function readManufacturingOrders_(ordersSheet, productionSheet) {
   });
 }
 
-function readProductionsForOrder_(sheet, orderId) {
+function readProductionsForOrder_(sheet, orderId, sku) {
   const values = sheet.getDataRange().getValues();
   const rows = [];
   for (let row = 1; row < values.length; row++) {
-    if (safeStr_(values[row][2]) !== orderId) continue;
+    if (safeStr_(values[row][2]) !== orderId || (safeStr_(sku) && normalizeKey_(values[row][3]) !== normalizeKey_(sku))) continue;
     rows.push({
       date: formatManufacturingOrderDate_(values[row][0], "dd/MM/yyyy"),
       shift: safeStr_(values[row][1]),
@@ -1145,6 +1085,11 @@ function readImportedSalesOrderLineIds_(sheet) {
   for (let row = 1; row < values.length; row++) {
     const lineId = safeStr_(values[row][16]);
     if (lineId) out.add(lineId);
+    if (safeStr_(values[row][29])) {
+      const ids = JSON.parse(values[row][29]);
+      if (!Array.isArray(ids)) throw new Error('El registro de líneas de pedido no es válido.');
+      ids.forEach(id=>out.add(safeStr_(id)));
+    }
   }
   return out;
 }
@@ -1156,6 +1101,7 @@ function formatManufacturingOrderEpochDate_(value, pattern) {
 }
 
 function previewPremiumProductsWithoutLots() {
+  assertLotsWebAppAccess_();
   const products = holdedRequest_("get", "/products");
   if (!Array.isArray(products)) throw new Error("Holded no devolvió un catálogo válido de productos.");
   const rows = [];

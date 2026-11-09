@@ -1,12 +1,14 @@
 # Contexto vivo del MES de Rotoformas
 
-Actualizado el 3 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+Actualizado el 9 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
 
 Este documento permite continuar el desarrollo del MES, especialmente la integración de Raspberry Pi, báscula, impresora Zebra y láser. Recoge las decisiones vigentes y los límites que deben respetar tanto los desarrolladores como sus asistentes de IA.
 
-La base de código revisada es el commit `0a5b3de`, del 29 de octubre de 2026. Los estados de despliegue indicados corresponden a esa revisión; deben comprobarse antes de publicar cambios. La configuración actual de los equipos físicos debe completarla Mauro.
+El 9 de noviembre se contrastó GitHub con el código de Apps Script y sus despliegues, entonces en versión 60. Se incorporaron los cambios de Raspberry, báscula y QR presentes en Apps Script. La ampliación de [OF con varias piezas](OF-VARIAS-PIEZAS.md) permite una OF por pedido y una línea por SKU. La configuración física de los equipos debe mantenerla Mauro junto con el código de Raspberry.
 
 ## Cómo mantener este documento
+
+La ampliación está publicada: versión 61 para planta y QR públicos y versión 62 para gestión privada, con el mismo código y manifiestos de acceso separados. Se conservaron las URLs y se verificaron acceso privado y pedidos agrupados. Cinco pruebas automatizadas pasan; la revisión visual con varias piezas utiliza datos ficticios. No se generaron movimientos ni trabajos físicos de prueba. SO260208 requiere revisar la gestión por lotes de sus productos antes de importar su OF. Véanse la verificación y la incidencia de despliegue corregida en [OF con varias piezas](OF-VARIAS-PIEZAS.md).
 
 GitHub es la fuente principal de este contexto. Una copia subida a un proyecto de ChatGPT es una instantánea y no se actualiza automáticamente al cambiar este archivo.
 
@@ -25,16 +27,16 @@ Google Sites presenta las aplicaciones de Apps Script. Google Sheets almacena pr
 
 Mauro puede editar el proyecto desde el navegador si dispone de permiso de edición en Apps Script. No necesita instalar Node o clasp para ese acceso. GitHub permite revisar cambios y mantener versiones; el acceso al repositorio no concede por sí mismo acceso a Google ni a Holded.
 
-La pantalla de planta permite operaciones limitadas sin iniciar sesión. La aplicación de gestión y la consulta del QR requieren una cuenta autorizada por el servidor. `mauro@rotoformas.com` forma parte de la lista configurada en el código revisado. Compartir Google Sites no sustituye esa autorización. El portal QR no es, actualmente, una consulta pública para cualquier cliente.
+La pantalla de planta permite operaciones limitadas sin iniciar sesión. La aplicación de gestión requiere una cuenta autorizada por el servidor. `mauro@rotoformas.com` forma parte de la lista configurada. Compartir Google Sites no sustituye esa autorización. La consulta QR ofrece ahora una ficha pública limitada por coincidencia exacta de lote; los datos internos y la gestión permanecen protegidos.
 
 Las credenciales de Holded se guardan en propiedades del script, entre ellas `HOLDED_API_KEY` y `HOLDED_API_V2_TOKEN`. No incluir sus valores, sesiones de Google, tokens de clasp ni credenciales de equipos en este documento, el repositorio o conversaciones.
 
 ## Flujo de fabricación
 
 1. Crear un pedido de venta en Holded cuando corresponda. También existe creación manual de OF para fabricación sin pedido.
-2. Desde pedidos pendientes, crear la OF. La elegibilidad depende de que el producto tenga gestión por lotes; no del término comercial «premium», que no debe aparecer en la interfaz.
-3. El MES genera la OF y su lote de producto terminado en Holded, inicialmente sin existencias. El nombre sigue `SKU-MMYYYY-OFNNNN`, usando la fecha objetivo o, en su defecto, la de creación.
-4. Configurar las materias primas de la OF, incluyendo el lote de PE y, cuando proceda, el pigmento.
+2. Desde pedidos pendientes, crear una OF para las referencias elegibles del pedido. Las líneas repetidas del mismo SKU se agrupan. La elegibilidad depende de que el producto tenga gestión por lotes; no del término comercial «premium», que no debe aparecer en la interfaz. Se muestran las líneas excluidas para revisarlas.
+3. El MES genera un lote de producto terminado por SKU de la OF en Holded, inicialmente sin existencias. El nombre sigue `SKU-MMYYYY-OFNNNN`, usando la fecha objetivo o, en su defecto, la de creación. Los colores son instrucciones, no SKU ni lotes distintos.
+4. Configurar las materias primas de cada línea de la OF, incluyendo el lote de PE y, cuando proceda, el pigmento.
 5. Registrar la producción por turno. Al generar el resumen se vinculan las fabricaciones a la OF.
 6. Procesar los movimientos de stock del turno: descontar componentes y sumar producto terminado en el lote de esa OF.
 7. Registrar pesajes individuales y emitir o reimprimir etiquetas cuando se necesiten.
@@ -45,7 +47,7 @@ Si hay varias OF abiertas pendientes para el mismo SKU, la producción agregada 
 
 ## Materias primas por orden
 
-Las OF tienen configuración propia en «Materias primas»:
+Cada modelo o SKU de la OF tiene configuración propia en «Materias primas»:
 
 - PE obligatorio, con producto compatible con la receta y un lote existente de Holded.
 - Pigmento opcional. Al activarlo, se seleccionan producto y lote existentes; debe corresponder al pigmento y cantidad de la receta. Se registra y descuenta ese lote.
@@ -108,11 +110,11 @@ Actualmente, repetir la petición de guardado puede crear otro pesaje. La integr
 
 La etiqueta tiene formato de 100 × 150 mm e incluye producto, SKU, lote, peso bruto, fecha, OF, número interno de pieza y QR. Ya utiliza un QR real; las referencias antiguas a un recuadro provisional o a 100 × 60 mm están superadas.
 
-Todas las piezas de un mismo lote comparten el QR. El número de pieza diferencia los registros internos de pesaje, pero el QR no identifica de forma única la pieza física. Su destino es la ficha del lote con el parámetro `lote` correctamente codificado en la URL.
+Todas las piezas de un mismo lote comparten el QR. Cada SKU de una OF tiene su lote. El número de pesada es secuencial para toda la OF y diferencia registros internos, pero el QR no identifica de forma única la pieza física. El destino se obtiene del servicio común de enlaces: admite los QR antiguos `?lote=`, los compatibles con láser `?lote/` y enlaces cortos por lote de `qr.rotoformas.com` cuando están habilitados.
 
 Se puede guardar un pesaje sin imprimir y reimprimirlo posteriormente desde trazabilidad tantas veces como sea necesario. Reimprimir reutiliza el registro existente y no crea otro pesaje, fabricación o movimiento de stock.
 
-Las plantillas están en `PlantWeightPage.html` y `LotsWebAppPage.html`; deben mantenerse coherentes. El código revisado usa HTML y la impresión del navegador. No incorpora todavía un protocolo propio de trabajos ZPL o de marcado láser en Raspberry.
+Las plantillas están en `PlantWeightPage.html` y `LotsWebAppPage.html`; deben mantenerse coherentes. Planta prepara un trabajo Raspberry mediante `queuePlantLabelJob`, con el registro guardado y su URL QR. La impresión manual del navegador queda como alternativa según el estado del trabajo. El puente utiliza protocolo 2 y actualiza V1 del láser sin iniciar el marcado.
 
 ## Direcciones que debemos conservar
 
@@ -136,7 +138,7 @@ Pantalla pública de pesaje:
 https://script.google.com/macros/s/AKfycbwZgzx_rFiDZ2ru8hsrmqnAIQO3WypJeGZXRTZpKL9uxQkvsrvvnSdrJ-7dG59qC9Hbsw/exec?modo=pesaje
 ```
 
-Último estado documentado: consulta QR y gestión privada en versión 49, acceso de dominio y ejecución como usuario que accede; planta en versión 48, ejecución como propietario del despliegue y acceso anónimo. No asumir que código de desarrollo y los tres despliegues están sincronizados.
+Estado comprobado antes de esta ampliación: los tres despliegues estaban en versión 60. Planta y QR permanente permiten acceso anónimo con ejecución como propietario; gestión conserva acceso de dominio con ejecución como usuario. No asumir que código de desarrollo y despliegues estén sincronizados. Conservar identificadores y permisos al actualizar versiones.
 
 ## Mapa del código y los datos
 
@@ -145,6 +147,7 @@ https://script.google.com/macros/s/AKfycbwZgzx_rFiDZ2ru8hsrmqnAIQO3WypJeGZXRTZpK
 | `MES.gs` | Resumen por turno, producción e histórico; vinculación con OF |
 | `Recipes.gs` | Recetas y componentes; configuración de rechazo de OX |
 | `ManufacturingOrders.gs` | Pedidos, OF, lotes terminados, fabricación vinculada, trazabilidad y pesajes |
+| `MultiPieceOrders.gs` | Agrupación de pedido por SKU, creación conjunta y selección inequívoca de línea |
 | `PigmentOrders.gs` | Configuración y captura de PE y pigmento por OF, pese al nombre del archivo |
 | `LotsWebApp.gs` | Entrada web, permisos y lotes activos globales |
 | `LotsWebAppPage.html` | Interfaz privada y reimpresión desde trazabilidad |
@@ -152,6 +155,9 @@ https://script.google.com/macros/s/AKfycbwZgzx_rFiDZ2ru8hsrmqnAIQO3WypJeGZXRTZpK
 | `Stock.gs` | Preparación, resolución de lotes, envío y reintento de stock |
 | `Holded.gs` | Catálogo y comunicación con Holded |
 | `Costs.gs` | Flujo separado de costes |
+| `HardwareBridge.gs` | Lectura de báscula, cola de trabajos y sincronización autenticada de Raspberry |
+| `ShortLinks.gs` | URL QR común y servicio de enlaces cortos por lote |
+| `GuestTraceabilityPage.html` | Consulta pública limitada del lote |
 
 Tablas principales: `Ordenes Fabricacion`, `Fabricaciones OF`, `Pesajes calidad`, `Recetas MES`, `Lotes activos`, `Cambios de lote`, `Holded Raw`, `Holded Preview` y `Holded Log`, además del resumen y el histórico de producción. Ocultar una pestaña no autoriza a eliminarla: puede ser parte del almacenamiento del MES.
 
@@ -161,7 +167,7 @@ La actualización de varios productos no es una transacción indivisible en Hold
 
 ## Integración de equipos que debe completar Mauro
 
-La impresión de etiquetas con Zebra ZT231 mediante Raspberry Pi y CUPS ha sido comunicada como operativa. Falta incorporar al repositorio la configuración reproducible y confirmar qué versión funciona actualmente. La integración automática de báscula y láser con el MES no queda acreditada por disponer de conexión física.
+El código de Apps Script recuperado el 9 de noviembre incluye lectura reciente y estable de báscula, cola para Zebra y actualización de V1 del láser. Se conserva en el repositorio. El agente de Raspberry y la configuración reproducible de sus servicios y equipos deben incorporarse o enlazarse también; la presencia del puente de servidor no sustituye la verificación física de impresión y marcado.
 
 El láser adquirido es Datamark UV Touch de 10 W y 355 nm. No describirlo como láser de fibra de 20–30 W. Se han comunicado pruebas de marcaje resistente al rascado y sobre superficies curvas; no equivalen a certificación de resistencia UV, envejecimiento exterior o cumplimiento de EN 1176.
 
@@ -175,11 +181,11 @@ Mauro debe aportar, sin secretos:
 
 Los materiales históricos incluyen `Manual_Zebra_ZT231_Raspberry_CUPS_DGA.pdf`, `lector_sensocar_raspberry (1).zip` y `LASER UV TOUCH (ES).pdf`. Deben contrastarse con la instalación actual; no basta con adjuntarlos para dar una integración por terminada.
 
-### Diseño propuesto para la siguiente implementación
+### Contrato de equipos y siguientes mejoras
 
-Separar tres operaciones: guardar una medición, imprimir una etiqueta y marcar una pieza. Cada trabajo de equipo debe tener identificador propio, referencia al registro guardado, estado y resultado. Un reintento de impresión no debe volver a guardar el peso. La lectura automática necesita un identificador de medición que permita reconocer peticiones duplicadas.
+Guardar una medición, preparar una etiqueta y marcar una pieza son operaciones distintas. Los trabajos actuales usan la clave `OF|Pnúmero` y reutilizan el registro guardado. El número de pesada sigue siendo único en toda la OF aunque haya varios SKU. Un reintento de impresión no debe volver a guardar el peso. El guardado del pesaje todavía necesita deduplicación por identificador de medición antes de introducir reintentos automáticos de esa operación.
 
-El puente con Raspberry deberá autenticar los equipos y limitar sus operaciones. No exponer claves de Holded ni convertir las funciones privadas de gestión en una API pública. La elección entre cola de trabajos, servicio intermedio u otro mecanismo sigue pendiente; no existe en el código revisado un endpoint externo que pueda darse por contratado.
+El puente de servidor ya autentica la sincronización con `RPI_BRIDGE_TOKEN`, almacenado en propiedades del script. `doPost` admite la operación de sincronización del protocolo 2, recibe telemetría y resultados y entrega trabajos autorizados. No exponer claves de Holded ni convertir las funciones privadas de gestión en una API pública. Mantener la compatibilidad con el cliente Raspberry antes de cambiar ese contrato.
 
 La aceptación de un trabajo por CUPS no demuestra por sí sola que la etiqueta haya salido físicamente. Registrar errores y permitir reimpresión controlada. Para el láser, conservar la misma URL QR y validar dimensiones, contraste y lectura en pieza real. Mantener confirmación local y protecciones del equipo; la recepción de un trabajo no debe activar automáticamente el láser sin el procedimiento seguro establecido.
 
@@ -204,7 +210,7 @@ Existen pruebas en `tests/order-pigment.cjs`, `tests/order-material-flow.cjs` y 
 
 ## Pendientes explícitos
 
-- Integración reproducible de equipos, protocolo de trabajos, deduplicación y recuperación de errores.
+- Incorporar la configuración y el código reproducibles de Raspberry; comprobar recuperación de errores y deduplicación del guardado de pesajes. El protocolo de trabajos de servidor ya existe.
 - Revisión de precisión de consumos pequeños de pigmento.
 - Resolver el caso de varias OF simultáneas para el mismo SKU si se requiere.
 - Registro persistente de paradas e incidencias: actualmente hay interfaz, no backend. Véase [PARADAS-INCIDENCIAS-UI.md](PARADAS-INCIDENCIAS-UI.md).

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#18283b;font:16px/1.5 Arial,sans-serif}
+    main{max-width:720px;margin:32px auto;padding:0 20px}header{margin-bottom:24px}h1{font-size:28px;margin:0}h2{font-size:19px;margin:0 0 16px}
+    article{background:white;border:1px solid #dce2e8;border-radius:12px;padding:24px;margin-bottom:16px}
+    dl{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:20px}dt{font-size:13px;color:#536579}dd{margin:4px 0 0;font-weight:bold;overflow-wrap:anywhere}
+    footer{margin-top:24px;font-size:14px}a{color:#155a9c}@media(max-width:480px){dl{grid-template-columns:1fr}}
+    .product-photo{display:block;width:100%;max-height:320px;object-fit:contain;margin:0 0 24px;border-radius:8px}
+  </style>
+</head>
+<body><main>
+  <header><h1>Rotoformas</h1><p>Consulta de lote</p></header>
+  <? if (!records.length) { ?>
+    <article>No hay información disponible para este lote.</article>
+  <? } ?>
+  <? records.forEach(function(record) { ?>
+    <article><h2><?= record.product ?></h2>
+    <? if (productImage) { ?><img class="product-photo" src="<?= productImage ?>" alt="Foto del producto" referrerpolicy="no-referrer" onerror="this.hidden=true"><? } ?>
+    <dl>
+      <div><dt>Fecha de fabricación</dt><dd><?= record.date ?></dd></div>
+      <div><dt>Lote materia prima (Polietileno)</dt><dd><?= record.peLot ?></dd></div>
+      <div><dt>Lote de esta pieza</dt><dd><?= record.ptLot ?></dd></div>
+    </dl></article>
+  <? }); ?>
+  <footer><a href="<?= companyUrl ?>">Acceder con cuenta de empresa</a></footer>
+</main></body>
+</html>

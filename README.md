@@ -6,6 +6,8 @@ Sistema MES desarrollado para Rotoformas S.L.
 
 El [contexto vivo del MES](docs/CONTEXTO-MES.md) recoge las reglas vigentes, arquitectura, accesos, despliegues, integración de equipos y pendientes. Es el punto de entrada para desarrolladores y asistentes de IA. Actualizarlo junto con los cambios funcionales; las copias en proyectos de ChatGPT son instantáneas.
 
+La [guía de OF con varias piezas](docs/OF-VARIAS-PIEZAS.md) explica cómo crear una OF por pedido, pesar cada modelo y conservar su trazabilidad.
+
 ## Funcionalidades actuales
 
 - Captura de producción mediante Google Forms

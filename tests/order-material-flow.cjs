@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const norm=v=>String(v??'').trim().toLowerCase();
 const c=vm.createContext({safeStr_:v=>String(v??'').trim(),normalizeKey_:norm,numberOrZero_:v=>Number(v)||0,round2_:v=>Math.round(v*100)/100,CONFIG:{productMasterSheet:'master'},LOTS_APP:{activeSheet:'active'},LockService:{getDocumentLock:()=>({waitLock(){},releaseLock(){}})}});
-vm.runInContext(['ManufacturingOrders.gs','PigmentOrders.gs','Stock.gs'].map(f=>fs.readFileSync(f,'utf8')).join('\n'),c);
+vm.runInContext(['MultiPieceOrders.gs','ManufacturingOrders.gs','PigmentOrders.gs','Stock.gs'].map(f=>fs.readFileSync(f,'utf8')).join('\n'),c);
 const rows=[['OX',2,0,2,17.6],['OTHER',3,0,3,24],['GENERIC',1,0,1,8],['TC',1,0,1,120]];
 const cat=['OX','OTHER','GENERIC','TC','PE NATURAL','PIG RTF073','INSERTO'].map((sku,i)=>[sku,sku,'P'+i,'','lots','','','RM','kg',true]);
 const resumen={getLastRow:()=>rows.length+3,getLastColumn:()=>5,getRange:r=>({getValues:()=>r===3?[['SKU','Uds','Uds rechazadas','Uds moldeadas','Kg totales']]:rows})};

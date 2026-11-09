@@ -1,4 +1,5 @@
 .clasp.json
+_local/
 
 # Archivos de sistema
 .DS_Store
