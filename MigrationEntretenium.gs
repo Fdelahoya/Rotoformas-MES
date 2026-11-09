@@ -60,6 +60,21 @@ function entReadPreview_() {
   return JSON.parse(raw);
 }
 
+/** Diagnóstico de recuperación: únicamente GET, sin repetir operaciones. */
+function inspectEntreteniumMigration() {
+  assertLotsWebAppAccess_();
+  const raw = PropertiesService.getScriptProperties().getProperty('ENT_MIGRATION_JOURNAL');
+  if (!raw) throw new Error('No existe diario');
+  const journal = JSON.parse(raw);
+  console.log('DIARIO '+JSON.stringify(journal));
+  const plan = entBuildPlan_(entReadPreview_());
+  journal.created.forEach(r => {
+    const item = plan.flatMap(f => f.items).find(i => i.sku === r.sku);
+    const actual = holdedV2Request_('get','/products/'+r.id);
+    console.log('COMPARACION '+JSON.stringify({sku:r.sku,expected:item.payload,actual}));
+  });
+}
+
 function entBuildPlan_(snapshot) {
   const norm = v => String(v || '').trim().replace(/\s+/g,' ').toUpperCase();
   if (!snapshot || !Array.isArray(snapshot.details) || snapshot.details.length !== 10)
@@ -133,24 +148,34 @@ function migrateEntreteniumToLots() {
     if (props.getProperty('ENT_MIGRATION_JOURNAL')) throw new Error('Ya existe diario: revisar antes de reintentar');
     const plan = validateMigrationEntretenium();
     const journal = {startedAt:new Date().toISOString(),status:'RUNNING',deleted:[],created:[]};
+    entExecuteJournal_(plan,journal,props);
+  } finally { lock.releaseLock(); }
+}
+
+function entExecuteJournal_(plan,journal,props) {
     const save = () => props.setProperty('ENT_MIGRATION_JOURNAL',JSON.stringify(journal));
     save();
     try {
       plan.forEach(f => {
+        if (!journal.deleted.includes(f.source.id)) {
         journal.pending = {operation:'DELETE',id:f.source.id}; save();
         holdedV2Request_('delete','/products/'+f.source.id);
         journal.deleted.push(f.source.id); save();
+        }
         f.items.forEach(item => {
+          let record = journal.created.find(r=>r.sku===item.sku);
+          if (!record) {
           journal.pending = {operation:'CREATE',sku:item.sku}; save();
           const created = holdedV2Request_('post','/products',item.payload);
           if (!created || !/^[a-f0-9]{24}$/i.test(created.id)) throw new Error('Alta sin ID: '+item.sku);
-          const record = {sku:item.sku,sourceId:item.sourceId,parentId:f.source.id,id:created.id,stock:item.stock,verified:false};
+          record = {sku:item.sku,sourceId:item.sourceId,parentId:f.source.id,id:created.id,stock:item.stock,verified:false};
           journal.created.push(record); save();
-          const v = holdedV2Request_('get','/products/'+created.id);
-          if (v.kind !== 'lots' || v.sku !== item.sku || Number(v.stock) !== item.stock ||
-            Number(v.weight) !== Number(item.payload.weight)) throw new Error('Verificación incorrecta: '+item.sku);
+          }
+          const v = holdedV2Request_('get','/products/'+record.id);
+          if (v.kind !== 'lots' || v.sku !== item.sku || migrationProductionNumber_(v.stock) !== item.stock ||
+            migrationProductionNumber_(v.weight) !== Number(item.payload.weight)) throw new Error('Verificación incorrecta: '+item.sku);
           ['price','cost','purchase_price'].forEach(k => {
-            if (item.payload[k] != null && Number(v[k]) !== Number(item.payload[k]))
+            if (item.payload[k] != null && migrationProductionNumber_(v[k]) !== Number(item.payload[k]))
               throw new Error('Valor distinto '+item.sku+' '+k);
           });
           record.verified = true; journal.pending = null; save();
@@ -163,5 +188,59 @@ function migrateEntreteniumToLots() {
     } catch (e) {
       journal.status = 'STOPPED'; journal.error = String(e.message); save(); throw e;
     }
-  } finally { lock.releaseLock(); }
+}
+
+/** Reanuda únicamente operaciones confirmadas en el diario, dentro del alcance autorizado. */
+function resumeEntreteniumMigration() {
+  assertLotsWebAppAccess_();
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try {
+    const props=PropertiesService.getScriptProperties();
+    const journal=JSON.parse(props.getProperty('ENT_MIGRATION_JOURNAL')||'null');
+    if (!journal || journal.status !== 'STOPPED') throw new Error('No existe una ejecución detenida');
+    const pending=journal.pending;
+    if (pending && !(pending.operation==='CREATE' && journal.created.some(r=>r.sku===pending.sku && r.id)))
+      throw new Error('Operación de resultado ambiguo; inspección manual necesaria');
+    const plan=entBuildPlan_(entReadPreview_());
+    plan.forEach(f=>{
+      if (!journal.deleted.includes(f.source.id)) {
+        const live=holdedV2Request_('get','/products/'+f.source.id);
+        if(JSON.stringify(live)!==JSON.stringify(f.source)) throw new Error('Familia modificada '+f.source.sku);
+      }
+    });
+    journal.status='RUNNING';journal.error=null;
+    entExecuteJournal_(plan,journal,props);
+  } finally {lock.releaseLock();}
+}
+
+/** Verifica los saldos finales y refresca el catálogo del MES; no mueve stock. */
+function finishEntreteniumMigration() {
+  assertLotsWebAppAccess_();
+  const props=PropertiesService.getScriptProperties();
+  const journal=JSON.parse(props.getProperty('ENT_MIGRATION_JOURNAL')||'null');
+  if (!journal || journal.status !== 'PRODUCTS_VERIFIED' || journal.created.length !== 20)
+    throw new Error('La migración de productos no está completa');
+  const snapshot=entReadPreview_();
+  const plan=entBuildPlan_(snapshot).flatMap(f=>f.items);
+  journal.created.forEach(r=>{
+    const p=holdedV2Request_('get','/products/'+r.id);
+    const expected=plan.find(i=>i.sku===r.sku);
+    const lotStock=(p.variants||[]).reduce((sum,v)=>sum+migrationProductionNumber_(v.stock),0);
+    if(p.sku!==r.sku || p.kind!=='lots' || migrationProductionNumber_(p.stock)!==r.stock || lotStock!==r.stock)
+      throw new Error('Saldo de producto/lote distinto '+r.sku);
+    if(expected.payload.warehouse_id && r.stock!==0 && !(p.stocks||[]).some(s=>
+      s.warehouse_id===expected.payload.warehouse_id && migrationProductionNumber_(s.stock)===r.stock))
+      throw new Error('Almacén distinto '+r.sku);
+    console.log('SALDO FINAL '+JSON.stringify({sku:p.sku,id:p.id,stock:p.stock,lotes:p.variants}));
+  });
+  snapshot.orderDetails.forEach(old=>{
+    const current=holdedRequest_('get','/documents/salesorder/'+old.id);
+    const content=order=>(order.products||[]).map(l=>[l.sku,l.units,l.price,l.desc]);
+    if(JSON.stringify(content(old))!==JSON.stringify(content(current))) throw new Error('Cambió contenido del pedido '+old.docNumber);
+    console.log('PEDIDO CONSERVADO '+old.docNumber+'; referencias '+JSON.stringify(current.products.map(l=>({sku:l.sku,productId:l.productId,variantId:l.variantId}))));
+  });
+  syncHoldedProducts();
+  journal.catalogRefreshedAt=new Date().toISOString();
+  props.setProperty('ENT_MIGRATION_JOURNAL',JSON.stringify(journal));
+  console.log('VERIFICACION FINAL CORRECTA: 20 productos/lotes y almacenes, pedido conservado, catálogo sincronizado.');
 }
