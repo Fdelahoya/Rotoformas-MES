@@ -1,18 +1,59 @@
 # Contexto vivo del MES de Rotoformas
 
-Actualizado el 9 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
+Actualizado el 10 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
 
 Este documento permite continuar el desarrollo del MES, especialmente la integración de Raspberry Pi, báscula, impresora Zebra y láser. Recoge las decisiones vigentes y los límites que deben respetar tanto los desarrolladores como sus asistentes de IA.
 
-El 9 de noviembre se contrastó GitHub con el código de Apps Script y sus despliegues, entonces en versión 60. Se incorporaron los cambios de Raspberry, báscula y QR presentes en Apps Script. La ampliación de [OF con varias piezas](OF-VARIAS-PIEZAS.md) permite una OF por pedido y una línea por SKU. La configuración física de los equipos debe mantenerla Mauro junto con el código de Raspberry.
+El 9 de noviembre se contrastó GitHub con el código de Apps Script y sus despliegues, entonces en versión 60. Se incorporaron los cambios de Raspberry, báscula y QR presentes en Apps Script. La ampliación de [OF con varias piezas](OF-VARIAS-PIEZAS.md) permite una OF por pedido y una línea por SKU. La configuración física de los equipos debe mantenerla el administrador junto con el código de Raspberry.
+
+## QR, enlaces cortos y equipos documentados el 10/11/2026
+
+La [guía de trazabilidad y QR](TRAZABILIDAD-QR.md) recoge las decisiones y
+comprobaciones de esta implantación. La ficha de invitado no pide contraseña:
+solo muestra nombre, fecha de fabricación, lote de polietileno, lote terminado
+y foto disponible de Holded. Se devuelve una única ficha de fabricación
+aceptada más reciente por lote, no una identificación del último pesaje físico.
+La cuenta autorizada conserva la trazabilidad completa.
+
+Los [enlaces cortos de qr.rotoformas.com](ENLACES-CORTOS.md) están activos desde
+el 9/11. Sulime publicó el DNS y el usuario instaló el servicio en el alojamiento
+Raiola con HTTPS. El MES, autenticado con una clave privada en propiedades,
+asigna automáticamente una URL permanente por lote; Zebra y láser reciben
+la misma URL. El servicio solo redirige al Apps Script original, que decide la
+vista. No se modificaron datos ni formato de la etiqueta. Los trabajos históricos
+conservan su URL y no se reenvían al activar este formato.
+
+La actualización se implantó en versión 60; las ampliaciones de OF y materias
+primas publicadas posteriormente conservan este recorrido. Este cambio
+**documental** no publica Apps Script ni sustituye las versiones posteriores
+63/64 ya registradas en este documento.
+
+La [configuración operativa de equipos](EQUIPOS-OPERATIVOS-2026-11-05.md) reúne
+servicio, rutas, parámetros USB, cola CUPS, V1, respaldos y discrepancias de IP.
+Las direcciones y credenciales concretas se conservan en la copia operativa
+privada. La IP de Zebra comunicada posteriormente y el destino de la cola
+inicial no se confunden: no se verificó una migración de la cola.
+
+La consulta real sin cookies abrió la ficha pública y con sesión autorizada
+abrió la trazabilidad. Se verificaron API, idempotencia, redirección y vista
+previa; el usuario confirmó el acceso final. No se imprimió ni marcó durante
+la activación del enlace corto. La prueba física de una nueva etiqueta corta
+en ambos equipos no se ha documentado todavía. La pantalla administrativa
+Conectar enlaces QR se dejó abierta, causó confusión y se cerró; no forma parte
+del recorrido de invitados.
+
+El [índice de documentación](README.md) separa las guías vigentes de los
+procedimientos históricos. Las fuentes del servicio PHP y del agente Raspberry
+siguen en el checkout local y en sus instalaciones; esta publicación sube
+únicamente documentación, sin sustituir el código más reciente de main.
 
 ## Cómo mantener este documento
 
-Los nombres comerciales de los veinte productos de Entretenium se restauraron posteriormente conservando los nuevos IDs, SKU, lotes y stock; catálogo MES actualizado.
+Los nombres comerciales de los productos del catálogo migrado se restauraron posteriormente conservando los nuevos IDs, SKU, lotes y stock; catálogo MES actualizado.
 
-Entretenium: la [migración de veinte SKU a lotes](MIGRACION-ENTRETENIUM.md) está ejecutada y verificada. Los productos menores (aros, semirrodillos y semiesferas) quedan fuera de la OF por decisión del usuario. SO260208 permite crear una OF de 8 modelos y 20 unidades; el catálogo está sincronizado. Antes de expedir en Holded hay que reenlazar sus líneas comerciales, que conservan los IDs antiguos. También quedan por revisar los campos que no copia el alta (imágenes, IVA de compra y Tipo de plástico).
+Catálogo migrado: la [migración de veinte SKU a lotes](MIGRACION-ENTRETENIUM.md) está ejecutada y verificada. Los productos menores (aros, semirrodillos y semiesferas) quedan fuera de la OF por decisión del usuario. REFERENCIA_EJEMPLO permite crear una OF de 8 modelos y 20 unidades; el catálogo está sincronizado. Antes de expedir en Holded hay que reenlazar sus líneas comerciales, que conservan los IDs antiguos. También quedan por revisar los campos que no copia el alta (imágenes, IVA de compra y Tipo de plástico).
 
-La ampliación está publicada: versión 61 para planta y QR públicos y versión 62 para gestión privada, con el mismo código y manifiestos de acceso separados. Se conservaron las URLs y se verificaron acceso privado y pedidos agrupados. Cinco pruebas automatizadas pasan; la revisión visual con varias piezas utiliza datos ficticios. No se generaron movimientos ni trabajos físicos de prueba. La gestión por lotes de SO260208 quedó habilitada posteriormente mediante la migración de Entretenium. Véanse la verificación y la incidencia de despliegue corregida en [OF con varias piezas](OF-VARIAS-PIEZAS.md).
+La ampliación está publicada: versión 61 para planta y QR públicos y versión 62 para gestión privada, con el mismo código y manifiestos de acceso separados. Se conservaron las URLs y se verificaron acceso privado y pedidos agrupados. Cinco pruebas automatizadas pasan; la revisión visual con varias piezas utiliza datos ficticios. No se generaron movimientos ni trabajos físicos de prueba. La gestión por lotes de REFERENCIA_EJEMPLO quedó habilitada posteriormente mediante la migración de Entretenium. Véanse la verificación y la incidencia de despliegue corregida en [OF con varias piezas](OF-VARIAS-PIEZAS.md).
 
 GitHub es la fuente principal de este contexto. Una copia subida a un proyecto de ChatGPT es una instantánea y no se actualiza automáticamente al cambiar este archivo.
 
@@ -24,14 +65,14 @@ El código y las pruebas determinan el comportamiento implementado. Este documen
 
 Google Sites presenta las aplicaciones de Apps Script. Google Sheets almacena producción, órdenes, pesajes, recetas y registros de integración. Holded contiene el catálogo, los pedidos, los lotes y el stock. GitHub conserva el código y su documentación.
 
-- [Proyecto de Apps Script](https://script.google.com/home/projects/1H-EC2HEDjYlAKURqHEagdgqx4rJXfCYmzEVJxnCD3YiPqjjyK3gy_xuS/edit).
-- [Hoja principal de producción](https://docs.google.com/spreadsheets/d/1PVM9RCMKzFy9qbzhSILuw59f-dojXkeLV7g5oUEobIo/edit).
-- [Pantalla pública de producción](https://sites.google.com/rotoformas.com/estandarizacion/produccion).
-- [Gestión y trazabilidad](https://sites.google.com/rotoformas.com/estandarizacion/producci%C3%B3n-y-trazabilidad).
+- Proyecto de Apps Script (dirección conservada en el registro privado).
+- Hoja principal de producción (dirección conservada en el registro privado).
+- Pantalla pública de producción (dirección conservada en el registro privado).
+- Gestión y trazabilidad (dirección conservada en el registro privado).
 
-Mauro puede editar el proyecto desde el navegador si dispone de permiso de edición en Apps Script. No necesita instalar Node o clasp para ese acceso. GitHub permite revisar cambios y mantener versiones; el acceso al repositorio no concede por sí mismo acceso a Google ni a Holded.
+el administrador puede editar el proyecto desde el navegador si dispone de permiso de edición en Apps Script. No necesita instalar Node o clasp para ese acceso. GitHub permite revisar cambios y mantener versiones; el acceso al repositorio no concede por sí mismo acceso a Google ni a Holded.
 
-La pantalla de planta permite operaciones limitadas sin iniciar sesión. La aplicación de gestión requiere una cuenta autorizada por el servidor. `mauro@rotoformas.com` forma parte de la lista configurada. Compartir Google Sites no sustituye esa autorización. La consulta QR ofrece ahora una ficha pública limitada por coincidencia exacta de lote; los datos internos y la gestión permanecen protegidos.
+La pantalla de planta permite operaciones limitadas sin iniciar sesión. La aplicación de gestión requiere una cuenta autorizada por el servidor. `CUENTA_AUTORIZADA` forma parte de la lista configurada. Compartir Google Sites no sustituye esa autorización. La consulta QR ofrece ahora una ficha pública limitada por coincidencia exacta de lote; los datos internos y la gestión permanecen protegidos.
 
 Las credenciales de Holded se guardan en propiedades del script, entre ellas `HOLDED_API_KEY` y `HOLDED_API_V2_TOKEN`. No incluir sus valores, sesiones de Google, tokens de clasp ni credenciales de equipos en este documento, el repositorio o conversaciones.
 
@@ -66,24 +107,14 @@ Para Tecnospra se acordó inicialmente seguir PE sin consumir ni seguir pigmento
 
 ## Ejemplos de referencia
 
-### OX Disair Basic
+Los casos con pedidos, productos, lotes y cantidades reales se conservan en
+el registro operativo privado. Para pruebas públicas se usan SKU-EJEMPLO,
+LOTE-EJEMPLO y cantidades ficticias. No ejecutar pruebas de stock con datos
+reales por copiar un ejemplo de documentación.
 
-Receta por pieza de `OX DISAIR BASIC`:
-
-| Componente | Cantidad | Gestión por lotes |
-| --- | ---: | --- |
-| INSERTO ALU M4 | 63 uds | No |
-| INSERTO ALU M10 | 4 uds | No |
-| PE NATURAL | 8,8 kg | Sí |
-| PIG RTF073 | 0,044 kg | Sí cuando está activado en la OF |
-
-La OF de referencia es `OF-2026-0002`, con lote `OX DISAIR BASIC-102026-OF0002`. El peso teórico para calidad es 8,8 kg, despreciando insertos y pigmento en esa comparación. Las unidades rechazadas consumen la receta; solo las unidades conformes aumentan producto terminado y avance de fabricación.
-
-Hay un punto pendiente de revisión: el cálculo de componentes conserva cuatro decimales, pero el envío de movimientos redondea a dos en el código revisado. Debe comprobarse la precisión para consumos pequeños como 0,044 kg antes de darla por resuelta.
-
-### DEP 2250 N
-
-La OF de referencia `OF-2026-0003` corresponde a seis unidades de `DEP 2250-N`, pedido `SO260204`, lote `DEP 2250-N-112026-OF0003` y peso teórico de 120 kg. Sirve para probar el flujo sin pigmento. Estos datos identifican el caso de prueba, no certifican su estado actual de fabricación ni su configuración actual de materiales.
+Se mantiene pendiente revisar la precisión de consumos pequeños: el cálculo
+conserva más decimales que algunos envíos de movimientos. No darlo por resuelto
+sin contrastar cantidades y registros.
 
 ## Pesaje y calidad
 
@@ -97,7 +128,7 @@ La desviación es el valor absoluto de la diferencia respecto al teórico, divid
 | Mayor del 3 % y menor del 6 % | Alerta, amarillo |
 | Desde el 6 % inclusive | No conforme, rojo |
 
-Se admite peso manual positivo y finito, también con coma decimal. Se registra OF, lote, número interno de pieza, peso, desviación, resultado, fecha, operario y observaciones. El desplegable de operarios está ordenado como Álvaro, Carlos, Emilio, Llusif y Martha. Elegir un nombre no constituye autenticación de identidad.
+Se admite peso manual positivo y finito, también con coma decimal. Se registra OF, lote, número interno de pieza, peso, desviación, resultado, fecha, operario y observaciones. El desplegable de operarios está ordenado como los operarios configurados. Elegir un nombre no constituye autenticación de identidad.
 
 Funciones relevantes:
 
@@ -120,29 +151,18 @@ Se puede guardar un pesaje sin imprimir y reimprimirlo posteriormente desde traz
 
 Las plantillas están en `PlantWeightPage.html` y `LotsWebAppPage.html`; deben mantenerse coherentes. Planta prepara un trabajo Raspberry mediante `queuePlantLabelJob`, con el registro guardado y su URL QR. La impresión manual del navegador queda como alternativa según el estado del trabajo. El puente utiliza protocolo 2 y actualiza V1 del láser sin iniciar el marcado.
 
-## Direcciones que debemos conservar
+## Direcciones y despliegues que deben conservarse
 
-Ya existen etiquetas enviadas a clientes. La dirección de consulta QR es un compromiso de compatibilidad: no eliminar ni sustituir su despliegue al publicar otra versión.
+Conservar los identificadores de QR permanente, planta y gestión. Las URLs
+reales, IDs de proyecto/hoja y cuentas autorizadas pertenecen al registro
+privado y no se publican aquí. Recrear un despliegue puede romper etiquetas
+ya distribuidas. La consulta pública ejecuta con la identidad configurada del
+propietario; la gestión privada conserva el acceso de empresa y su autorización.
 
-Consulta QR, con `?lote=` y el lote codificado al final:
-
-```text
-https://script.google.com/a/macros/rotoformas.com/s/AKfycbw5LAL2__An-gyUsq8qDYNKfYZ5tfJys8INv7__MpmHx32SuZWxonaFiygbsO92tBsN5Q/exec
-```
-
-Gestión privada:
-
-```text
-https://script.google.com/a/macros/rotoformas.com/s/AKfycbyNA69u8JNmcqRaAct4vNMYey5dXCSKa4L-5f9wwcV2FG-zrBjnWnsfUlzKHoIL4ek86w/exec
-```
-
-Pantalla pública de pesaje:
-
-```text
-https://script.google.com/macros/s/AKfycbwZgzx_rFiDZ2ru8hsrmqnAIQO3WypJeGZXRTZpKL9uxQkvsrvvnSdrJ-7dG59qC9Hbsw/exec?modo=pesaje
-```
-
-Estado comprobado antes de esta ampliación: los tres despliegues estaban en versión 60. Planta y QR permanente permiten acceso anónimo con ejecución como propietario; gestión conserva acceso de dominio con ejecución como usuario. No asumir que código de desarrollo y despliegues estén sincronizados. Conservar identificadores y permisos al actualizar versiones.
+La instalación de enlaces cortos se publicó inicialmente como versión 60.
+Las ampliaciones posteriores de OF y materias primas alcanzaron las versiones
+63 para planta/QR y 64 para gestión, según el registro de publicación disponible.
+No degradar esas versiones ni cambiar los permisos al mantener los enlaces.
 
 ## Mapa del código y los datos
 
@@ -169,13 +189,13 @@ En `Stock.gs`, revisar especialmente `applyStockMovements`, `resolveStockLotForM
 
 La actualización de varios productos no es una transacción indivisible en Holded: puede haber éxito parcial. Consultar `Holded Log` y existencias antes de repetir un turno completo. Las funciones de prueba y migración pueden escribir datos reales; no ejecutarlas solo porque su nombre incluya «test» o «sandbox».
 
-## Integración de equipos que debe completar Mauro
+## Integración de equipos y fuentes pendientes
 
-El código de Apps Script recuperado el 9 de noviembre incluye lectura reciente y estable de báscula, cola para Zebra y actualización de V1 del láser. Se conserva en el repositorio. El agente de Raspberry y la configuración reproducible de sus servicios y equipos deben incorporarse o enlazarse también; la presencia del puente de servidor no sustituye la verificación física de impresión y marcado.
+El código de Apps Script recuperado el 9 de noviembre incluye lectura reciente y estable de báscula, cola para Zebra y actualización de V1 del láser. Se conserva en el repositorio. La instalación y sus verificaciones se documentan en [Equipos operativos](EQUIPOS-OPERATIVOS-2026-11-05.md). El agente Raspberry funciona en la instalación; sus fuentes y las del servicio PHP todavía deben incorporarse a main mediante un cambio de código separado. La verificación de comunicaciones no sustituye la lectura de la etiqueta física ni demuestra marcado.
 
 El láser adquirido es Datamark UV Touch de 10 W y 355 nm. No describirlo como láser de fibra de 20–30 W. Se han comunicado pruebas de marcaje resistente al rascado y sobre superficies curvas; no equivalen a certificación de resistencia UV, envejecimiento exterior o cumplimiento de EN 1176.
 
-Mauro debe aportar, sin secretos:
+el administrador debe aportar, sin secretos:
 
 - Modelo de Raspberry, sistema operativo, servicios y forma de arranque y recuperación.
 - Cola CUPS, controlador, conexión y parámetros de etiqueta que dan impresión correcta.
@@ -214,7 +234,7 @@ Existen pruebas en `tests/order-pigment.cjs`, `tests/order-material-flow.cjs` y 
 
 ## Pendientes explícitos
 
-- Incorporar la configuración y el código reproducibles de Raspberry; comprobar recuperación de errores y deduplicación del guardado de pesajes. El protocolo de trabajos de servidor ya existe.
+- Versionar las fuentes reproducibles del agente Raspberry y del servicio PHP de enlaces, conservadas en el checkout local y en la instalación. La configuración y pruebas ya están documentadas. Comprobar recuperación de errores y deduplicación del guardado de pesajes; el protocolo de trabajos de servidor ya existe.
 - Revisión de precisión de consumos pequeños de pigmento.
 - Resolver el caso de varias OF simultáneas para el mismo SKU si se requiere.
 - Registro persistente de paradas e incidencias: actualmente hay interfaz, no backend. Véase [PARADAS-INCIDENCIAS-UI.md](PARADAS-INCIDENCIAS-UI.md).
@@ -231,3 +251,4 @@ Conserva los identificadores y URLs de QR ya distribuidos, la separación públi
 ## Preparación de materias primas por línea — 09/11/2026
 
 Publicado en versiones 63 (planta/QR) y 64 (privada). Cada línea muestra pendiente/asignada y sus lotes; cabecera con líneas preparadas. Pesaje bloqueado en UI y servidor hasta configurar PE y decidir pigmento. Guardar actualiza solo esa línea y confirma el resultado. Véase [Materias primas por OF](MATERIAS-PRIMAS-POR-OF.md). No cambia stock, equipos, URLs ni registros históricos.
+
