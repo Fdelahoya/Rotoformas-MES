@@ -64,3 +64,6 @@ Verificación en la aplicación publicada: acceso privado correcto, lectura de l
 El pedido SO260208 aparece, pero sus 18 líneas no resultaban elegibles por gestión por lotes en la consulta del 9 de noviembre. Debe revisarse su catálogo antes de crear la OF; los accesorios que no se fabrican pueden quedar fuera. No se modificó el catálogo automáticamente.
 
 ![Pedidos agrupados en la aplicación publicada](evidencias/of-varias-piezas/pedidos-publicados.jpg)
+
+## Indicaciones visibles en planta — 10/11/2026
+Las observaciones de cada línea, heredadas de la descripción del pedido, se muestran en la tarjeta pública bajo Indicaciones de fabricación. Se conserva el texto y sus saltos de línea, sin interpretar colores como SKU ni crear lotes adicionales. Ya estaban disponibles en el diálogo de pesaje. Pruebas de interfaz superadas (texto por línea, escape de HTML y ausencia de bloques vacíos). Publicación pendiente: Google rechazó la renovación de credenciales de clasp.
