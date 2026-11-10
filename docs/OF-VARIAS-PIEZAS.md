@@ -66,4 +66,5 @@ El pedido SO260208 aparece, pero sus 18 líneas no resultaban elegibles por gest
 ![Pedidos agrupados en la aplicación publicada](evidencias/of-varias-piezas/pedidos-publicados.jpg)
 
 ## Indicaciones visibles en planta — 10/11/2026
-Las observaciones de cada línea, heredadas de la descripción del pedido, se muestran en la tarjeta pública bajo Indicaciones de fabricación. Se conserva el texto y sus saltos de línea, sin interpretar colores como SKU ni crear lotes adicionales. Ya estaban disponibles en el diálogo de pesaje. Pruebas de interfaz superadas (texto por línea, escape de HTML y ausencia de bloques vacíos). Publicación pendiente: Google rechazó la renovación de credenciales de clasp.
+Las observaciones de cada línea, heredadas de la descripción del pedido, se muestran en la tarjeta pública bajo Indicaciones de fabricación. Se conserva el texto y sus saltos de línea, sin interpretar colores como SKU ni crear lotes adicionales. Ya estaban disponibles en el diálogo de pesaje. Pruebas de interfaz superadas (texto por línea, escape de HTML y ausencia de bloques vacíos). Publicado y verificado el 10/11/2026: versión 65 para planta/QR y 66 para gestión privada. Se conservaron URL y permisos y se comprobó el código subido. Pruebas de interfaz superadas.
+
