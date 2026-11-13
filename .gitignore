@@ -4,6 +4,16 @@ _local/
 # Archivos de sistema
 .DS_Store
 Thumbs.db
-
 # Logs
 *.log
+.clasprc.json
+.local-audit/
+.env
+.env.*
+*.sqlite3
+short-links/config.php
+short-links/private/
+short-links/rotoformas-qr-private/
+**/mes-properties.json
+**/__pycache__/
+*.pyc

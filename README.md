@@ -1,5 +1,7 @@
 # Rotoformas MES
 
+Las ramas de equipos y las mejoras de pesaje se reúnen en **main**. Véase [Consolidación y validación del 13/11/2026](docs/CONSOLIDACION-MAIN-2026-11-13.md) para el contador de piezas aceptadas, sus límites, lectura USB, ventanas y fuentes de Raspberry y enlaces cortos.
+
 Sistema MES desarrollado para Rotoformas S.L.
 
 ## Documentación para continuar el desarrollo
@@ -41,3 +43,4 @@ Proyecto en desarrollo activo.
 - [Equipos operativos](docs/EQUIPOS-OPERATIVOS-2026-11-05.md): Raspberry, báscula USB, CUPS y láser, con las comprobaciones fechadas y sus límites.
 
 Los QR de un lote comparten un enlace permanente. El invitado accede sin contraseña a la ficha reducida y la cuenta autorizada conserva la trazabilidad completa. La preparación de etiqueta no mueve stock; el marcado del láser sigue siendo manual.
+

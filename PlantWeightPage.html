@@ -8,6 +8,31 @@
     .events-panel{margin-bottom:22px;border-top:4px solid #d97706}.events-panel h2{margin:0;color:var(--navy);font-size:23px}.demo-tag{display:inline-block;background:#fef3c7;color:#92400e;border-radius:30px;padding:5px 10px;font-size:12px;font-weight:800;letter-spacing:.04em}.event-buttons{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}.event-button{text-align:left;min-height:90px;background:#fff;border:2px solid var(--line);color:var(--navy)}.event-button strong{display:block;font-size:21px}.event-button span{display:block;font-size:14px;font-weight:400;margin-top:4px}.event-button.stop{border-color:#f4c58b;background:#fffaf2}.event-button.issue{border-color:#b5c9ec;background:#f5f8ff}.demo-note{padding:12px 14px;background:#fff7e6;border-radius:10px;font-size:14px;color:#78450c}.event-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.event-preview{margin-top:18px;padding:16px;border:1px solid #b9c7d5;border-radius:12px;background:#f4f7fa;overflow-wrap:anywhere}.event-preview h3{margin:0 0 8px}.event-preview dl{margin:0}.event-preview dt{font-size:13px;color:var(--muted);margin-top:10px}.event-preview dd{margin:2px 0;font-weight:700;white-space:pre-wrap}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #2563eb;outline-offset:3px}@media(max-width:480px){.event-buttons,.event-grid{grid-template-columns:1fr}.events-panel{padding:16px}.dialog-body{padding:18px}}
   .piece-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:14px 0;border-top:1px solid #e2e8f0}.piece-row h3{margin:0 0 4px;font-size:18px;overflow-wrap:anywhere}.piece-row button{min-height:48px;min-width:100px}.work-reference{font-weight:700;color:#163d54;margin:8px 0}.piece-counts{display:flex;gap:14px;flex-wrap:wrap}.order-heading{margin-bottom:12px}.piece-row .progress{margin-top:8px;height:5px}@media(max-width:480px){.piece-row{gap:8px}.piece-row h3{font-size:16px}.piece-counts{gap:4px;flex-direction:column}}
   .materials-status{display:inline-block;margin:8px 0 4px;padding:5px 9px;border-radius:8px;font-size:13px;font-weight:700}.materials-ready{background:#dcfce7;color:#166534}.materials-pending{background:#fef3c7;color:#92400e}button:disabled{opacity:.5;cursor:not-allowed}.piece-instructions{margin:10px 0;padding:10px 12px;border-left:4px solid #2563eb;background:#eff6ff;color:#17324d;white-space:pre-wrap;overflow-wrap:anywhere}.piece-instructions strong{display:block;margin-bottom:4px;font-size:13px}</style>
+<style id="labelDialogLayout">
+@media screen{
+#labelDialog{width:min(620px,calc(100% - 16px));height:fit-content;max-height:min(480px,calc(100vh - 16px));max-height:min(480px,calc(100dvh - 16px));overflow:hidden}
+#labelDialog .dialog-body{height:auto;max-height:min(480px,calc(100vh - 16px));max-height:min(480px,calc(100dvh - 16px));display:flex;flex-direction:column;overflow:hidden;padding:12px}
+#labelDialog .dialog-body>h2{order:-2;flex:none;font-size:22px;margin:0 0 8px}
+#labelDialog .dialog-body>.hint{flex:none;margin:4px 0;font-size:13px}
+#labelDialog .dialog-body>p.hint:not(#hardwareStatus){display:none}
+#labelDialog .label-preview{flex:0 1 290px;min-height:80px;overflow:auto;overscroll-behavior:contain;padding:2px}
+#labelDialog .label-sheet{width:100mm;height:150mm;margin:0 auto;zoom:.5}
+#labelDialog .actions{order:-1;flex:none;flex-wrap:wrap;gap:8px;margin:0 0 8px;padding:0 0 8px;border-top:0;border-bottom:1px solid var(--line);background:#fff}
+#labelDialog .actions button{min-height:44px;padding:10px 14px;font-size:15px}
+}
+</style>
+<style id="weightDialogLayout">
+@media screen{
+#weightDialog{height:fit-content;max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:hidden}
+#weightDialog .dialog-body{display:flex;flex-direction:column;max-height:min(680px,calc(100vh - 16px));max-height:min(680px,calc(100dvh - 16px));overflow:hidden;padding:20px}
+#weightDialog .dialog-body>h2{flex:none;margin-bottom:8px}
+#weightDialog #context,#weightDialog #weightContext{flex:0 1 auto;min-height:0;max-height:30vh;max-height:30dvh;overflow:auto;margin-bottom:12px}
+#weightDialog form{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden;margin:0}
+#weightDialog .weight-fields{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:6px}
+#weightDialog .actions{flex:none;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);background:#fff}
+#weightDialog .actions button{min-height:48px}
+}
+</style>
 </head>
 <body>
   <header><h1>Pesaje de piezas</h1><p>Control de peso bruto al salir del horno</p></header>
@@ -26,8 +51,8 @@
     <section class="panel" style="margin-bottom:18px"><label for="operator">Operario *</label><select id="operator" required><option value="">Selecciona un operario…</option><option>Álvaro</option><option>Carlos</option><option>Emilio</option><option>Llusif</option><option>Martha</option></select></section>
     <section id="orders"><div class="empty">Cargando órdenes de fabricación…</div></section>
   </main>
-  <dialog id="weightDialog"><div class="dialog-body"><h2 id="title">Pesar pieza</h2><div id="context" class="hint"></div><form onsubmit="saveWeight(event)"><input id="orderId" type="hidden"><input id="lineSku" type="hidden"><label for="weight">Peso bruto al salir del horno (kg) *</label><input id="weight" type="number" min="0.001" step="0.001" inputmode="decimal" required><p id="scaleStatus" class="hint" role="status">Lectura USB pendiente</p><button type="button" class="secondary" onclick="loadScaleWeight()">Pesar</button><label for="notes">Observaciones</label><textarea id="notes" placeholder="Opcional"></textarea><div id="result"></div><div class="actions"><button type="button" class="secondary" onclick="closeWeight()">Cerrar</button><button id="save" class="primary" type="submit">Guardar pesaje</button></div></form></div></dialog>
-  <dialog id="labelDialog"><div class="dialog-body"><h2>Vista previa de etiqueta</h2><p class="hint">Formato 100 × 150 mm. La preparación envía automáticamente la etiqueta a Zebra y la URL QR a V1 del láser, sin iniciar el marcado.</p><p id="hardwareStatus" role="status" class="hint">Pendiente de preparar</p><div id="labelSheet" class="label-sheet"></div><div class="actions"><button type="button" class="secondary" onclick="el('labelDialog').close()">Cerrar</button><button id="manualPrintFallback" type="button" class="secondary" disabled onclick="printLabel()">Impresión manual (solo ante fallo Zebra)</button></div></div></dialog>
+  <dialog id="weightDialog"><div class="dialog-body"><h2 id="title">Pesar pieza</h2><div id="context" class="hint"></div><form onsubmit="saveWeight(event)"><div class="weight-fields"><input id="orderId" type="hidden"><input id="lineSku" type="hidden"><label for="weight">Peso bruto al salir del horno (kg) *</label><input id="weight" type="number" min="0.001" step="0.001" inputmode="decimal" required><p id="scaleStatus" class="hint" role="status">Lectura USB pendiente</p><button type="button" class="secondary" onclick="loadScaleWeight()">Pesar</button><label for="notes">Observaciones</label><textarea id="notes" placeholder="Opcional"></textarea><div id="result"></div></div><div class="actions"><button type="button" class="secondary" onclick="closeWeight()">Cerrar</button><button id="save" class="primary" type="submit">Guardar pesaje</button></div></form></div></dialog>
+  <dialog id="labelDialog"><div class="dialog-body"><h2>Vista previa de etiqueta</h2><p class="hint">Formato 100 × 150 mm. La preparación envía automáticamente la etiqueta a Zebra y la URL QR a V1 del láser, sin iniciar el marcado.</p><p id="hardwareStatus" role="status" class="hint">Pendiente de preparar</p><div class="label-preview"><div id="labelSheet" class="label-sheet"></div></div><div class="actions"><button type="button" class="secondary" onclick="el('labelDialog').close()">Cerrar</button><button id="manualPrintFallback" type="button" class="secondary" disabled onclick="printLabel()">Impresión manual (solo ante fallo Zebra)</button></div></div></dialog>
   <dialog id="plantEventDialog" aria-labelledby="plantEventTitle" aria-describedby="plantEventHelp"><div class="dialog-body">
     <span class="demo-tag">PROTOTIPO · SIN REGISTRO</span><h2 id="plantEventTitle" style="margin-top:10px">Parada</h2>
     <p class="hint" id="plantEventHelp">Puedes probar el formulario. Nada se envía ni se guarda; el contenido se descarta al cerrar.</p>
@@ -62,8 +87,41 @@
       }).join(''):'<div class="panel empty">No hay órdenes abiertas.</div>';
     }
     function openWeightLine(index){const o=data.orders[index];if(o)openWeight(o.id,o.sku)}
-    function openWeight(id,sku){lastMeasurement=null;const matches=data.orders.filter(item=>item.id===id&&(!sku||item.sku===sku));if(matches.length!==1)return showError('Selecciona el modelo de pieza.');const o=matches[0];if(!o.materials||!o.materials.ready)return showError('Materias primas pendientes. Solicita que asignen los lotes de esta línea antes de pesar.');const operator=el('operator').value.trim();if(!operator)return showError('Selecciona primero el operario.');clearError();el('orderId').value=id;el('lineSku').value=o.sku;el('weight').value='';el('notes').value='';el('result').innerHTML='';el('title').textContent='Pesar pieza · '+id;el('context').innerHTML=`<div>${esc(o.client||'')} · ${esc(o.salesOrderNumber||'Sin pedido')}</div>${o.reference?'<div class="work-reference">'+esc(o.reference)+'</div>':''}<strong>${esc(o.sku)} · ${esc(o.product)}</strong>${o.color?'<div>'+esc(o.color)+'</div>':''}${o.instructions?'<div>'+esc(o.instructions)+'</div>':''}<br>Lote: ${esc(o.finishedLot||'pendiente')} · Peso teórico: ${o.theoreticalWeight?kg(o.theoreticalWeight)+' kg':'sin definir'}`;el('weightDialog').showModal();loadScaleWeight();setTimeout(()=>el('weight').focus(),100)}
-    function loadScaleWeight(){const request=++scaleRequest,started=Date.now(),before=el('weight').value,status=el('scaleStatus');status.textContent='Leyendo peso estable de la báscula USB…';google.script.run.withSuccessHandler(r=>{if(request!==scaleRequest||el('weight').value!==before)return;if(r.ok&&Date.now()-started<=r.validForMs){el('weight').value=Number(r.weight).toFixed(1);status.textContent='Lectura USB reciente: '+kg(r.weight)+' kg. Comprueba el visor antes de guardar.'}else{el('weight').value='';status.textContent=(r.message||'Lectura caducada; vuelve a leer la báscula.')+' Puedes introducir el peso manualmente si está autorizado.'}}).withFailureHandler(e=>{if(request!==scaleRequest||el('weight').value!==before)return;el('weight').value='';status.textContent='No se pudo leer la báscula: '+(e.message||String(e))}).getPlantScaleWeight()}
+    function openWeight(id,sku){lastMeasurement=null;const matches=data.orders.filter(item=>item.id===id&&(!sku||item.sku===sku));if(matches.length!==1)return showError('Selecciona el modelo de pieza.');const o=matches[0];if(!o.materials||!o.materials.ready)return showError('Materias primas pendientes. Solicita que asignen los lotes de esta línea antes de pesar.');const operator=el('operator').value.trim();if(!operator)return showError('Selecciona primero el operario.');clearError();el('orderId').value=id;el('lineSku').value=o.sku;el('weight').value='';el('notes').value='';el('result').innerHTML='';el('title').textContent='Pesar pieza · '+id;el('context').innerHTML=`<div>${esc(o.client||'')} · ${esc(o.salesOrderNumber||'Sin pedido')}</div>${o.reference?'<div class="work-reference">'+esc(o.reference)+'</div>':''}<strong>${esc(o.sku)} · ${esc(o.product)}</strong>${o.color?'<div>'+esc(o.color)+'</div>':''}${o.instructions?'<div>'+esc(o.instructions)+'</div>':''}<br>Lote: ${esc(o.finishedLot||'pendiente')} · Peso teórico: ${o.theoreticalWeight?kg(o.theoreticalWeight)+' kg':'sin definir'}`;el('weightDialog').showModal();el('weight').focus();loadScaleWeight()}
+    function loadScaleWeight(){
+      const request=++scaleRequest,field=el('weight'),status=el('scaleStatus');
+      let expected=field.value;
+      const current=()=>request===scaleRequest&&el('weightDialog').open&&field.value===expected;
+      function failed(message,attempt){
+        if(!current())return;
+        field.value='';expected='';
+        if(attempt<2){
+          status.textContent='Esperando una lectura USB reciente y estable… Intento '+(attempt+2)+' de 3.';
+          setTimeout(()=>{if(current())read(attempt+1)},750);
+        }else{
+          status.textContent=message+' Puedes pulsar Pesar para volver a leer o introducir el peso manualmente si está autorizado.';
+        }
+      }
+      function read(attempt){
+        if(!current())return;
+        const started=Date.now();
+        google.script.run.withSuccessHandler(r=>{
+          if(!current())return;
+          const weight=Number(r&&r.weight),validFor=Number(r&&r.validForMs),elapsed=Date.now()-started;
+          if(r&&r.ok===true&&Number.isFinite(weight)&&weight>0.100&&weight<100000&&Number.isFinite(validFor)&&validFor>0&&elapsed>=0&&elapsed<=validFor){
+            field.value=weight.toFixed(1);
+            status.textContent='Lectura USB reciente: '+kg(weight)+' kg. Comprueba el visor antes de guardar.';
+          }else{
+            failed(r&&r.message||'La lectura USB ha caducado antes de llegar.',attempt);
+          }
+        }).withFailureHandler(e=>{
+          failed('No se pudo leer la báscula: '+(e&&e.message||String(e)),attempt);
+        }).getPlantScaleWeight();
+      }
+      if(!el('weightDialog').open)return;
+      status.textContent='Leyendo peso estable de la báscula USB…';
+      read(0);
+    }
     function closeWeight(){++scaleRequest;el('weightDialog').close();loadOrders()}
     function saveWeight(event){event.preventDefault();const button=el('save');button.disabled=true;const input={orderId:el('orderId').value,sku:el('lineSku').value,actualWeight:el('weight').value,notes:el('notes').value,operator:el('operator').value.trim()};google.script.run.withSuccessHandler(r=>{button.disabled=false;lastMeasurement=r;const cls=r.result==='CONFORME'?'ok':r.result==='ALERTA'?'warn':'bad',sign=r.difference>0?'+':'';const labelButton=r.result==='NO CONFORME'?'':`<button type="button" class="secondary" style="margin-top:14px" onclick="openLabel()">Preparar etiqueta</button>`;el('result').innerHTML=`<div class="result ${cls}"><span>Pieza ${num(r.pieceNumber)} · ${esc(r.result)}</span><strong>${kg(r.actualWeight)} kg</strong><div>Teórico ${kg(r.theoreticalWeight)} kg · ${sign}${kg(r.difference)} kg · ${num(r.deviationPercent)} %</div>${r.result==='NO CONFORME'?'<div style="margin-top:12px">⚠ APARTA LA PIEZA Y REVISA EL PROCESO</div>':labelButton}</div>`;el('weight').value='';el('weight').focus()}).withFailureHandler(e=>{button.disabled=false;showError(e.message||String(e))}).recordPlantManufacturingPieceWeight(input)}
     function openLabel(){const r=lastMeasurement;if(!r)return;el('labelSheet').innerHTML=`<div><div class="label-brand"><img src="${BRAND_LOGO_URL}" alt="Rotoformas"></div><div class="label-product">${esc(r.product)}</div><div>${esc(r.sku)}</div><div style="margin-top:2mm">LOTE</div><div class="label-lot">${esc(r.finishedLot)}</div><div class="label-meta"><div><span>Peso bruto</span><strong>${kg(r.actualWeight)} kg</strong></div><div><span>Pieza</span><strong>${num(r.pieceNumber)}</strong></div><div><span>Fecha</span><strong>${esc(r.measuredAt)}</strong></div><div><span>OF</span><strong>${esc(r.orderId)}</strong></div></div></div><div id="labelQr" class="label-qr">Preparando QR…</div>`;el('labelDialog').showModal();queueHardwareLabel(r)}

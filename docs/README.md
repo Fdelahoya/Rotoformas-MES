@@ -1,5 +1,7 @@
 # Documentación del MES Rotoformas
 
+- [Consolidación en main del 13/11/2026](CONSOLIDACION-MAIN-2026-11-13.md): ramas de equipos, lectura USB, ventanas y límite de fabricadas.
+
 Índice actualizado el 10/11/2026. El [contexto vivo](CONTEXTO-MES.md) reúne las
 reglas y el estado actual; las guías siguientes desarrollan cada operación.
 
@@ -28,3 +30,4 @@ un piloto sobre el servicio que ya está operativo.
 Las claves, contraseñas, archivos de entorno reales, registro privado de
 enlaces y sesiones no forman parte de esta documentación pública. Los
 identificadores de despliegue no sustituyen la autorización de Google.
+
