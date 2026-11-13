@@ -69,11 +69,48 @@ function previewTecnospraSalesOrderDetails() {
   return details;
 }
 
+/** Contador de pantalla: piezas aceptadas, sin duplicar partes de turno ni tocar stock. */
+function manufacturingAcceptedWeightTotals_(values) {
+  const totals = new Map(), seen = new Set();
+  values.slice(1).forEach(row => {
+    const result = safeStr_(row[11]);
+    if (result !== 'CONFORME' && result !== 'ALERTA') return;
+    const id = safeStr_(row[2]), sku = normalizeKey_(row[4]), lot = normalizeKey_(row[3]);
+    const piece = numberOrZero_(row[6]);
+    if (!id || !sku || !lot || piece <= 0) return;
+    const key = JSON.stringify([id, sku, lot]);
+    const identity = JSON.stringify([id, sku, lot, piece]);
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    totals.set(key, (totals.get(key) || 0) + 1);
+  });
+  return totals;
+}
+
+function manufacturingAcceptedCount_(order, totals) {
+  return totals.get(JSON.stringify([safeStr_(order.id), normalizeKey_(order.sku), normalizeKey_(order.finishedLot)])) || 0;
+}
+
+function withManufacturingAcceptedCounts_(orders, qualitySheet) {
+  const totals = manufacturingAcceptedWeightTotals_(qualitySheet.getDataRange().getValues());
+  return orders.map(order => {
+    const target = Math.max(0, numberOrZero_(order.targetQuantity));
+    const accepted = manufacturingAcceptedCount_(order, totals);
+    const produced = Math.min(target, accepted);
+    return Object.assign({}, order, {
+      acceptedWeightQuantity: accepted,
+      producedQuantity: produced,
+      pendingQuantity: Math.max(0, target - produced),
+      progress: target > 0 ? Math.min(100, Math.round(produced / target * 1000) / 10) : 0
+    });
+  });
+}
+
 function getManufacturingOrdersData() {
   assertLotsWebAppAccess_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const orders = readManufacturingOrders_(sheets.orders, sheets.production);
+  const orders = withManufacturingAcceptedCounts_(readManufacturingOrders_(sheets.orders, sheets.production), sheets.quality);
   return {
     generatedAt: formatLotsDate_(new Date()),
     orders,
@@ -284,7 +321,7 @@ function getManufacturingOrderDetail(orderId, sku) {
   if (!id) throw new Error("No se ha indicado el número de OF.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const order = selectManufacturingOrderLine_(readManufacturingOrders_(sheets.orders, sheets.production), id, sku);
+  const order = selectManufacturingOrderLine_(withManufacturingAcceptedCounts_(readManufacturingOrders_(sheets.orders, sheets.production), sheets.quality), id, sku);
   if (!order) throw new Error(`No encuentro la orden ${id}.`);
   return {
     order,
@@ -308,7 +345,7 @@ function getPlantWeightOrders() {
   if (!sheets.orders || !sheets.production || !sheets.quality) {
     throw new Error('La configuracion de planta requiere revision de un administrador.');
   }
-  const orders = readManufacturingOrders_(sheets.orders, sheets.production)
+  const orders = withManufacturingAcceptedCounts_(readManufacturingOrders_(sheets.orders, sheets.production), sheets.quality)
     .filter(order => order.status === MANUFACTURING_ORDERS.openStatus)
     .map(order => ({
       id: order.id,
@@ -372,6 +409,14 @@ function recordManufacturingPieceWeight_(input, actor) {
     const difference = actualWeight - theoreticalWeight;
     const deviationPercent = Math.abs(difference) / theoreticalWeight * 100;
     const result = classifyManufacturingWeight_(deviationPercent);
+    // La comprobación y el alta comparten el bloqueo: dos puestos no pueden superar el objetivo.
+    if (result === 'CONFORME' || result === 'ALERTA') {
+      const accepted = manufacturingAcceptedCount_(current, manufacturingAcceptedWeightTotals_(values));
+      if (accepted >= Math.max(0, numberOrZero_(current.targetQuantity))) {
+        throw new Error('Objetivo alcanzado para ' + current.sku + ': ya hay ' + current.targetQuantity +
+          ' piezas aceptadas. No se ha guardado otro pesaje aceptado.');
+      }
+    }
     const now = new Date();
     const user = safeStr_(actor) || "Pantalla producción";
     sheets.quality.appendRow([
@@ -416,7 +461,7 @@ function getTraceabilityRecord(reference) {
   if (!query) throw new Error("Escanea un QR o introduce un lote de producto terminado.");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ensureManufacturingOrderSheets_(ss);
-  const orders = readManufacturingOrders_(sheets.orders, sheets.production);
+  const orders = withManufacturingAcceptedCounts_(readManufacturingOrders_(sheets.orders, sheets.production), sheets.quality);
   const matches = orders.filter(item => normalizeKey_(item.finishedLot) === query || normalizeKey_(item.id) === query);
   if (matches.length > 1) return {selection:true, orderId:matches[0].id,
     lines:matches.map(o=>({sku:o.sku,product:o.product,finishedLot:o.finishedLot}))};
