@@ -1,0 +1,8 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^\.well-known/(acme-challenge|pki-validation)/ - [L]
+# Only the front controller is public. Existing files (such as php.ini) are not served.
+RewriteRule ^index\.php$ - [L]
+RewriteRule ^ index.php [L,QSA]
