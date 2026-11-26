@@ -6,8 +6,10 @@ como página de primer nivel de Google Sites. El propietario solicitó consulta
 y edición públicas sin iniciar sesión en la versión ya publicada. La revisión
 de la PR solicitada por Fidel conserva consulta pública y exige cuentas Google
 autorizadas para movimientos (planta) y restauración/configuración (administración),
-con permisos comprobados en servidor y denegación por defecto. Esta corrección
-no se ha desplegado en producción; se valida con inventario ficticio. Instrucciones
+con permisos comprobados en servidor y denegación por defecto. La corrección se
+publicó en almacén v9 y gestión MES v78. Por decisión expresa del propietario,
+todas las cuentas acreditadas de rotoformas.com reciben ambos roles, incluida
+restauración de copias. Las escrituras se validan con inventario ficticio. Instrucciones
 de trabajo solo comparte el menú: el enlace futuro usaría mold.id y leería la
 ubicación del almacén, sin duplicarla. El menú del almacén usa #1c1c1c, igual
 que la barra lateral del sitio, y fondo blanco. Los permisos del resto del MES

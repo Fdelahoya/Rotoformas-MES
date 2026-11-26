@@ -18,9 +18,9 @@ copias JSON. El menú horizontal usa #1c1c1c y la página es blanca, como el sit
 | Planta, cuenta Google acreditada y autorizada | Consulta y registro de entradas, salidas y traslados |
 | Administración, cuenta Google acreditada y autorizada | Planta, catálogos, fichas, ubicaciones, exportación completa y restauración de copias |
 
-No basta pertenecer a un dominio ni escribir un nombre o correo en la interfaz.
+No basta escribir un nombre o correo en la interfaz.
 `Session.getActiveUser().getEmail()` acredita la cuenta y una lista explícita del
-servidor concede el rol. No se usa `getEffectiveUser()` ni se confía en roles,
+servidor concede el rol, por cuenta o por dominio exacto configurado. No se usa `getEffectiveUser()` ni se confía en roles,
 identidades, fechas o historiales recibidos del navegador. Si Google no proporciona
 identidad, la aplicación permanece en consulta. Los permisos se revisan en cada
 operación, aunque la interfaz conserve controles de una sesión anterior.
@@ -39,12 +39,19 @@ En **Configuración del proyecto > Propiedades del script** del proyecto indepen
 | --- | --- |
 | `WAREHOUSE_PLANT_USERS` | Array JSON de correos exactos autorizados para movimientos |
 | `WAREHOUSE_ADMIN_USERS` | Array JSON de correos exactos de administración; incluye las capacidades de planta |
+| `WAREHOUSE_PLANT_DOMAIN` | Dominio exacto autorizado para movimientos, sin @ ni comodines |
+| `WAREHOUSE_ADMIN_DOMAIN` | Dominio exacto autorizado para administración; incluye planta |
 | `WAREHOUSE_DATA_FILE_ID` | ID del archivo privado de datos; se crea en el primer guardado |
 
-Las listas ausentes, vacías o mal formadas no conceden permisos. No se asignan roles
-por defecto al propietario ni al dominio. Configurar las listas con las cuentas
+Las listas y dominios ausentes, vacíos o mal formados no conceden permisos. No se asignan roles
+por defecto al propietario ni a ningún dominio. Configurar las listas con las cuentas
 que apruebe el responsable; no guardar listas reales, propiedades ni credenciales
-en Git. Se pueden retirar permisos quitando una cuenta de la lista correspondiente.
+en Git. Por decisión expresa del propietario, la configuración publicada concede
+planta y administración a todas las cuentas Google acreditadas de `rotoformas.com`:
+ambas propiedades `WAREHOUSE_PLANT_DOMAIN` y `WAREHOUSE_ADMIN_DOMAIN` tienen ese valor.
+Para restringir administración a personas concretas, retirar `WAREHOUSE_ADMIN_DOMAIN`
+y configurar `WAREHOUSE_ADMIN_USERS`. Quitar un correo de una lista no revoca el
+acceso si su dominio sigue autorizado.
 
 El despliegue público ejecuta como propietario para mantener privado el archivo de
 Drive. Google puede no devolver el correo del visitante en este modo. Dentro del
@@ -75,12 +82,13 @@ node tests/warehouse-menu.cjs
 
 La integración continua regenera `google/` y comprueba que coincide con Git.
 
-## Publicación después de revisión
+## Publicación y cambios posteriores
 
-Esta revisión corrige la PR; **no actualiza automáticamente el despliegue que ya
-estaba publicado con escritura pública**. Fusionar tampoco publica Apps Script.
-Tras aprobarla, el responsable debe configurar las listas, publicar y verificar
-las cuentas/roles en un entorno separado antes de habilitar el uso operativo.
+La corrección se publicó el 26/11/2026: almacén versión 9 y gestión MES versión 78,
+conservando los despliegues existentes. Se comprobó en consulta que la cuenta
+corporativa recibe administración. Las pruebas de movimientos y restauración usan
+inventario ficticio; no se realizaron esas operaciones sobre datos reales.
+Fusionar la PR no vuelve a publicar Apps Script automáticamente.
 
 El almacén es un proyecto independiente del MES. Crear localmente
 `almacen-moldes/.clasp.json` (ignorado por Git) con:

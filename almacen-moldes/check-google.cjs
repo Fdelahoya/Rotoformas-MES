@@ -49,6 +49,15 @@ const entry={mold:'mold-unique-001',kind:'Entrada',location:'E1M1N1',person:'Res
  for(const config of [undefined,'[invalid]','"plant@example.test"','["plant@example.test",null]']){const f=fixture();f.login('plant@example.test');f.props.WAREHOUSE_PLANT_USERS=config;assert.equal(f.call('warehouseGetState').access.canMove,false);assert.throws(()=>f.call('warehouseRecordMovement',entry,7),/autorizada/)}
  const f=fixture();delete f.props.WAREHOUSE_ADMIN_USERS;f.login('admin@example.test');assert.throws(()=>f.call('warehouseRestoreBackup',f.state,7),/administración/);
 }
+{
+ const f=fixture();delete f.props.WAREHOUSE_ADMIN_USERS;delete f.props.WAREHOUSE_PLANT_USERS;
+ f.props.WAREHOUSE_PLANT_DOMAIN='rotoformas.com';f.props.WAREHOUSE_ADMIN_DOMAIN='rotoformas.com';
+ for(const email of ['', 'user@rotoformas.com.evil','user@evilrotoformas.com','user@sub.rotoformas.com','user@example.test']){f.login(email);assert.equal(f.call('warehouseGetState').access.canMove,false);assert.throws(()=>f.call('warehouseRecordMovement',entry,7),/autorizada/);assert.throws(()=>f.call('warehouseRestoreBackup',f.state,7),/administración/);}
+ f.login('OPERARIO@ROTOFORMAS.COM');assert.equal(f.call('warehouseGetState').access.canAdmin,true);f.call('warehouseRecordMovement',entry,7);assert.equal(f.db().state.moves[0].actor,'operario@rotoformas.com');f.call('warehouseRestoreBackup',f.state,8);assert.equal(f.stats().copies,1);
+ f.props.WAREHOUSE_ADMIN_DOMAIN='';assert.equal(f.call('warehouseGetState').access.canMove,true);assert.equal(f.call('warehouseGetState').access.canAdmin,false);assert.throws(()=>f.call('warehouseRestoreBackup',f.state,9),/administración/);
+ for(const domain of ['*.rotoformas.com','@rotoformas.com','rotoformas.com/other','rotoformas..com']){f.props.WAREHOUSE_PLANT_DOMAIN=domain;assert.equal(f.call('warehouseGetState').access.canMove,false);}
+ f.props.WAREHOUSE_PLANT_DOMAIN='rotoformas.com';f.props.WAREHOUSE_ADMIN_DOMAIN='rotoformas.com';f.identityUnavailable();assert.equal(f.call('warehouseGetState').access.canAdmin,false);
+}
 const js=fs.readFileSync(path.join(dir,'Client.html'),'utf8').replace(/^<script>\s*/, '').replace(/\s*<\/script>$/, '');new vm.Script(js);
 assert.ok(!js.includes('localStorage'));assert.ok(js.includes("rpc('warehouseRecordMovement',values,revision)"));assert.ok(js.includes("restore?'warehouseRestoreBackup':'warehousePutState'"));assert.ok(js.includes('Identidad acreditada'));assert.ok(js.includes('actorVerified===true'));
 const manifest=JSON.parse(fs.readFileSync(path.join(dir,'appsscript.json')));assert.equal(manifest.webapp.access,'ANYONE_ANONYMOUS');assert.equal(manifest.webapp.executeAs,'USER_DEPLOYING');

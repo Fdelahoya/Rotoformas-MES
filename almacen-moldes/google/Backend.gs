@@ -12,8 +12,12 @@ function warehouseAccess_() {
       return Array.isArray(values) && values.every(v => typeof v === 'string') && values.some(v => v.trim().toLowerCase() === email);
     } catch (e) { return false; }
   };
-  const canAdmin = Boolean(email && listed('WAREHOUSE_ADMIN_USERS'));
-  const canMove = Boolean(canAdmin || (email && listed('WAREHOUSE_PLANT_USERS')));
+  const inDomain = key => {
+    const domain = String(props.getProperty(key) || '').trim().toLowerCase();
+    return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(domain) && email.split('@')[1] === domain;
+  };
+  const canAdmin = Boolean(email && (listed('WAREHOUSE_ADMIN_USERS') || inDomain('WAREHOUSE_ADMIN_DOMAIN')));
+  const canMove = Boolean(canAdmin || (email && (listed('WAREHOUSE_PLANT_USERS') || inDomain('WAREHOUSE_PLANT_DOMAIN'))));
   return {email, role: canAdmin ? 'administracion' : canMove ? 'planta' : 'consulta', canMove, canAdmin};
 }
 function warehouseRequire_(permission) {

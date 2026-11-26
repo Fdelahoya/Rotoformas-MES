@@ -28,7 +28,7 @@ fondo #ffffff y menú #1c1c1c. El resto del MES conserva sus permisos y desplieg
 
 - Consulta pública sin sesión. La respuesta pública omite las identidades y los
   nombres de responsables del historial; no expone la auditoría administrativa.
-- Movimientos solo para una cuenta Google acreditada incluida en la lista de planta,
+- Movimientos solo para una cuenta Google acreditada autorizada por lista o dominio de planta,
   o una cuenta de administración. `warehouseRecordMovement` acepta la intención y
   calcula en servidor ubicación, historial, fecha e identidad. No acepta estado ni
   identidad acreditada del cliente.
@@ -44,9 +44,13 @@ fondo #ffffff y menú #1c1c1c. El resto del MES conserva sus permisos y desplieg
   independiente con la cuenta de administración y la revisión anterior.
 
 Configuración, restricciones de identidad de Apps Script y despliegue:
-[almacen-moldes/README.md](../almacen-moldes/README.md). No se crean cuentas ni roles
-reales en esta PR. Si Google no facilita el correo o falta una lista válida, solo
-se permite consulta; no se usa la identidad del propietario como sustituto.
+[almacen-moldes/README.md](../almacen-moldes/README.md). No se crean cuentas Google.
+Por decisión expresa del propietario, todas las cuentas acreditadas de
+`rotoformas.com` reciben planta y administración, incluida restauración de copias.
+Se configuraron ambas propiedades de dominio del servidor. Los roles siguen
+separados en código y pueden restringirse después. Si Google no facilita el correo
+o no hay una regla válida, solo se permite consulta; no se usa la identidad del
+propietario como sustituto.
 
 ## Relación real con Instrucciones de trabajo
 
@@ -86,8 +90,7 @@ modificado el contenido de ninguna instrucción real.
 - `node tests/warehouse-menu.cjs`: carga diferida, navegación y sintaxis del MES.
 - CI regenera los HTML y ejecuta las pruebas existentes del repositorio.
 
-La versión publicada anteriormente (almacén v8, gestión v77) se verificó visualmente
-antes de esta revisión y permitía escritura pública. **La corrección de permisos
-está en esta PR y no se ha desplegado sobre producción.** Después de revisión,
-configurar las listas autorizadas, publicar la nueva versión y validar los roles
-contra un inventario de prueba separado; no probar restauraciones en el real.
+La corrección se publicó el 26/11/2026: almacén v9 y gestión MES v78, conservando
+las URLs y los permisos del resto del MES. Se verificó visualmente el acceso de
+administración con la cuenta corporativa. Las escrituras y restauraciones se
+validaron con inventario ficticio, sin ejecutar esas operaciones en el real.
