@@ -29,6 +29,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Node tests (MES)
         run: |
+          node almacen-moldes/build-google.cjs
+          git diff --exit-code -- almacen-moldes/google
           for test_file in tests/*.cjs; do node "$test_file"; done
       - name: Python integration tests (no hardware)
         run: |

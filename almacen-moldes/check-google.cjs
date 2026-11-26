@@ -1,0 +1,22 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto'),path=require('node:path');
+const dir=path.join(__dirname,'google');let email='mauro@rotoformas.com',data='',fileId='',writes=0,copies=0,locks=0;
+const file={getId:()=> 'shared-file',getBlob:()=>({getDataAsString:()=>data}),setContent:s=>{writes++;data=s},makeCopy:()=>{copies++}};
+const context=vm.createContext({Set,Date,JSON,console,Session:{getActiveUser:()=>({getEmail:()=>email})},Utilities:{getUuid:()=>crypto.randomUUID(),newBlob:s=>({getBytes:()=>Buffer.from(s)})},PropertiesService:{getScriptProperties:()=>({getProperty:()=>fileId,setProperty:(_,id)=>{fileId=id}})},DriveApp:{getFileById:()=>file,createFile:(_,s)=>{writes++;data=s;return file}},MimeType:{PLAIN_TEXT:'text/plain'},LockService:{getScriptLock:()=>({waitLock:()=>locks++,releaseLock:()=>locks--})}});
+vm.runInContext(fs.readFileSync(path.join(dir,'Model.gs'),'utf8')+'\n'+fs.readFileSync(path.join(dir,'Backend.gs'),'utf8'),context);
+const run=code=>vm.runInContext(code,context);
+for(const visitor of ['', 'persona@gmail.com','x@otrodominio.com']){email=visitor;assert.equal(run('warehouseGetState().revision'),0);assert.equal(run('warehouseGetState().email'),visitor||'Invitado');}
+assert.equal(writes,0);assert.equal(locks,0);
+email='mauro@rotoformas.com';assert.equal(run('warehouseGetState().revision'),0);
+run("var next=Model.empty(); next.owners.push({id:'o',name:'Cliente',abbr:'CLI'});warehousePutState(next,0,false)");assert.equal(writes,1);assert.equal(fileId,'shared-file');
+assert.throws(()=>run('warehousePutState(next,0,false)'),/Otra persona/);assert.equal(writes,1);assert.equal(locks,0);
+email='operario@rotoformas.com';assert.equal(run('warehouseGetState().state.owners[0].name'),'Cliente');
+run("next=warehouseGetState().state;next.types.push({id:'t',name:'Depósito',abbr:'DEP'});warehousePutState(next,1,false)");
+assert.equal(JSON.parse(data).updatedBy,'operario@rotoformas.com');
+run("next=warehouseGetState().state;next.owners[0].name='Cambio indebido'");assert.throws(()=>run('warehousePutState(next,2,false)'),/reescribir/);assert.equal(writes,2);
+run("next=warehouseGetState().state;warehousePutState(next,2,true)");assert.equal(copies,1);assert.equal(writes,3);
+data='invalido';assert.throws(()=>run('warehouseGetState()'));assert.equal(locks,0);
+const js=fs.readFileSync(path.join(dir,'Client.html'),'utf8').replace(/^<script>\s*/, '').replace(/\s*<\/script>$/, '');new vm.Script(js);
+assert.ok(!js.includes('localStorage'));assert.ok(js.includes("rpc('warehousePutState'"));assert.ok(js.includes('await fn('));
+const manifest=JSON.parse(fs.readFileSync(path.join(dir,'appsscript.json')));assert.equal(manifest.webapp.access,'ANYONE_ANONYMOUS');assert.equal(manifest.webapp.executeAs,'USER_DEPLOYING');
+assert.ok(fs.readFileSync(path.join(dir,'Backend.gs'),'utf8').includes('HtmlService.XFrameOptionsMode.ALLOWALL'));
+console.log('Google: lectura pública sin sesión, inventario compartido, escritura identificada cuando hay sesión, rechazo de revisiones antiguas, protección del historial y copia previa a importación. Vista integrada permitida.');

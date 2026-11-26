@@ -1,5 +1,13 @@
 # Contexto vivo del MES de Rotoformas
 
+Almacén de moldes, 26/11/2026: se conserva en el repositorio la herramienta
+independiente de Apps Script, integrada en el menú del MES y publicada también
+como página de primer nivel de Google Sites. El propietario solicitó consulta
+y edición públicas sin iniciar sesión. El menú del almacén usa #1c1c1c, igual
+que la barra lateral del sitio, y fondo blanco. Los permisos del resto del MES
+se conservan. Véase [Almacén de moldes](ALMACEN-MOLDES.md) para código,
+publicación, almacenamiento compartido y comprobaciones.
+
 Actualizado el 10 de noviembre de 2026. Responsable del contenido: equipo Rotoformas.
 
 Este documento permite continuar el desarrollo del MES, especialmente la integración de Raspberry Pi, báscula, impresora Zebra y láser. Recoge las decisiones vigentes y los límites que deben respetar tanto los desarrolladores como sus asistentes de IA.
