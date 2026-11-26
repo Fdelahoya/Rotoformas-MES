@@ -1,78 +1,93 @@
 # Almacén de moldes en el MES
 
-Implementación incorporada al repositorio el 26/11/2026. El almacén se mantiene
-como proyecto de Apps Script independiente con su propio inventario compartido.
+## Alcance de esta PR
 
-## Acceso en el menú principal
+Código completo del proyecto independiente de Apps Script, entrada en el menú del
+MES y documentación de la página ya creada en Google Sites. La revisión solicitada
+por Fidel separa consulta, planta y administración y añade pruebas con inventario
+ficticio. No se han ejecutado escrituras ni restauraciones sobre el inventario real.
 
-Se creó y publicó la página de primer nivel **Almacén de moldes** en el menú
-lateral izquierdo de Google Sites, debajo de Instrucciones de trabajo:
+## Accesos y navegación
+
+Página de primer nivel del menú lateral izquierdo de Google Sites, debajo de
+Instrucciones de trabajo:
 
 https://sites.google.com/rotoformas.com/estandarizacion/almac%C3%A9n-de-moldes
 
-La página incrusta directamente la herramienta con `?mes=1`. Usa el mismo
-inventario que el enlace independiente:
+La página incrusta la herramienta con `?mes=1`. También hay una pestaña con carga
+diferida en Producción y trazabilidad. Ambos accesos y la pantalla completa usan
+el mismo inventario:
 
 https://script.google.com/macros/s/AKfycbxDTssDa-o1lOQ75n55Dh-zc_Wq_Sz1KNsiXGAMOSbWoOcz8t_tQkRAFKn015Bxfw/exec
 
-La publicación en Google Sites se realizó desde su editor. Git conserva el código
-y estas instrucciones, pero no modifica ni publica automáticamente Google Sites.
-Para reconstruir esa navegación, añadir una página visible de primer nivel con el
-nombre anterior e insertar la URL del almacén con `?mes=1`, en un bloque de ancho
-completo y altura suficiente para trabajar.
+La navegación de Google Sites se configuró en su editor; Git no publica ese sitio.
+El modo integrado oculta la marca duplicada. Se conservan menú horizontal compacto,
+fondo #ffffff y menú #1c1c1c. El resto del MES conserva sus permisos y despliegues.
 
-## Acceso desde Producción y trazabilidad
+## Permisos y trazabilidad
 
-`LotsWebAppPage.html` añade también una pestaña **Almacén de moldes** y una vista
-incrustada. Se carga únicamente al abrir esa pestaña. Al cambiar de apartado, la
-vista permanece cargada y conserva el formulario. El botón Abrir en pantalla
-completa abre el mismo inventario en otra pestaña.
+- Consulta pública sin sesión. La respuesta pública omite las identidades y los
+  nombres de responsables del historial; no expone la auditoría administrativa.
+- Movimientos solo para una cuenta Google acreditada incluida en la lista de planta,
+  o una cuenta de administración. `warehouseRecordMovement` acepta la intención y
+  calcula en servidor ubicación, historial, fecha e identidad. No acepta estado ni
+  identidad acreditada del cliente.
+- Administración para editar catálogos/fichas/ubicaciones, exportar copias completas
+  o restaurarlas. `warehousePutState` no permite cambiar ubicaciones ni historiales
+  por esa vía. `warehouseRestoreBackup` y la antigua variante de restauración
+  comprueban administración antes de acceder al archivo.
+- Permisos comprobados de nuevo en cada llamada, con denegación por defecto.
+  La configuración está en propiedades del servidor, nunca en el inventario importado.
+- El historial distingue `actor`/`actorVerified`/`actorRole` (identidad acreditada por
+  Google en esa operación) de `person` (responsable escrito a mano). Las copias
+  importadas no acreditan autores históricos. La restauración deja una auditoría
+  independiente con la cuenta de administración y la revisión anterior.
 
-La integración fue publicada en gestión v77 conservando sus permisos
-DOMAIN / USER_ACCESSING. El almacén independiente se publicó en v8. Las restantes
-funciones y los permisos de producción, pesajes y consulta QR se conservan.
+Configuración, restricciones de identidad de Apps Script y despliegue:
+[almacen-moldes/README.md](../almacen-moldes/README.md). No se crean cuentas ni roles
+reales en esta PR. Si Google no facilita el correo o falta una lista válida, solo
+se permite consulta; no se usa la identidad del propietario como sustituto.
 
-## Funciones y aspecto final
+## Relación real con Instrucciones de trabajo
 
-- Catálogos de propietarios y tipos, códigos automáticos y parámetros opcionales.
-- Ubicaciones por estantería, módulo y nivel, como E1M1N1.
-- Entradas, salidas y traslados con historial y responsable.
-- Consulta del inventario, etiquetas y exportaciones CSV/JSON.
-- Menú horizontal compacto, de color #1c1c1c, y fondo blanco #ffffff.
-- Cabecera ROTOFORMAS sin el prefijo R/. En modo integrado se oculta la marca
-  duplicada y se mantiene el submenú del almacén.
+**Actualmente solo comparten el menú de Google Sites.** Las páginas de Instrucciones
+de trabajo no llaman al almacén, no leen su ubicación ni se actualizan al mover un
+molde. Las notas de las OF del MES tampoco constituyen ese enlace. Esta PR no
+rehace instrucciones ni añade una integración que no existe.
 
-## Acceso público solicitado
+El molde ya tiene un identificador único `mold.id`, distinto del código visible
+(CLI-DEP-001) y de la ubicación (E1M1N1). La edición de fichas y los movimientos
+conservan ese ID. Para una futura integración, la instrucción guardaría únicamente
+la referencia a ese ID y consultaría la ubicación actual del almacén. No se
+copiaría una ubicación dentro de la instrucción ni se resolvería por nombre libre.
 
-El propietario solicitó explícitamente que cualquier persona con el enlace pueda
-consultar y editar sin cuenta de Google ni ChatGPT. El manifiesto independiente
-usa ANYONE_ANONYMOUS / USER_DEPLOYING; el servidor permite invitados y la vista
-admite incrustación. La identidad Google es opcional y figura como Invitado si no
-está disponible. El responsable declarado del movimiento no es una identidad
-verificada. Esto sustituye la restricción inicial a rotoformas.com y no amplía
-los permisos del resto del MES ni de la página de Google Sites.
+Ejemplo ficticio del flujo futuro, todavía no implantado:
 
-## Código y almacenamiento
+1. Molde `id=mold-unique-001`, código CLI-DEP-001, ubicado en E1M1N1.
+2. Una instrucción referencia `mold-unique-001`; al abrirla consulta el almacén y
+   muestra E1M1N1. El texto de la instrucción no contiene una copia de la ubicación.
+3. Planta registra un traslado a E1M2N1 con el mismo ID. Solo cambia el almacén.
+4. Al abrir de nuevo la instrucción se resuelve ese mismo ID y se muestra E1M2N1.
+   Si no existe el ID o la consulta falla, se indica que no se puede localizar el
+   molde; no se usa una ubicación copiada o antigua.
 
-El código completo y los pasos de generación/publicación están en
-[almacen-moldes](../almacen-moldes/README.md). La carpeta se excluye de la subida
-del proyecto principal mediante la lista cerrada existente en `.claspignore`.
-El almacén se publica por separado; no copiar su manifiesto al MES.
+Este diseño se limita a documentar el vínculo futuro y la fuente única; no se ha
+modificado el contenido de ninguna instrucción real.
 
-El inventario se guarda en un archivo privado de Drive del propietario del script.
-Lecturas y escrituras pasan por la aplicación pública. Se conserva el mismo archivo
-y no se duplican datos al abrir desde distintas páginas. Se usan bloqueo de script,
-revisión de inventario y rechazo de guardados basados en una revisión antigua.
-Las importaciones conservan antes un respaldo en Drive. El límite es 8 MB.
+## Validación y puesta en servicio
 
-## Validación
+- `node tests/warehouse.cjs`: inventario ficticio con consulta sin sesión, rechazo
+  de todas las escrituras anónimas y de cuentas no autorizadas, movimientos de
+  planta, revocación de permisos, configuración inválida y restauración solo admin.
+- Intenta falsificar identidad/rol/fecha, mover por el método de administración y
+  reescribir historial; verifica que el servidor rechaza los atajos o ignora esos
+  datos del cliente. Comprueba auditoría, copias previas, conflictos y errores.
+- El mismo molde conserva su ID y cambia de ubicación tras el traslado ficticio.
+- `node tests/warehouse-menu.cjs`: carga diferida, navegación y sintaxis del MES.
+- CI regenera los HTML y ejecuta las pruebas existentes del repositorio.
 
-- `node tests/warehouse-menu.cjs`: menú, carga diferida, retorno sin recarga,
-  conservación de la navegación previa y sintaxis del cliente del MES.
-- `node tests/warehouse.cjs`: códigos, ciclo de movimientos, copias, acceso público,
-  lectura compartida, conflictos de revisión y conservación del historial.
-- La integración continua regenera los HTML del almacén y exige que coincidan
-  con los archivos registrados, además de ejecutar las pruebas existentes del MES.
-- Se comprobó visualmente la página publicada de Google Sites, la opción del menú
-  lateral y la herramienta incrustada. La vista del almacén respondió HTTP 200
-  sin cookies. No se introdujeron moldes ni movimientos ficticios en producción.
+La versión publicada anteriormente (almacén v8, gestión v77) se verificó visualmente
+antes de esta revisión y permitía escritura pública. **La corrección de permisos
+está en esta PR y no se ha desplegado sobre producción.** Después de revisión,
+configurar las listas autorizadas, publicar la nueva versión y validar los roles
+contra un inventario de prueba separado; no probar restauraciones en el real.
