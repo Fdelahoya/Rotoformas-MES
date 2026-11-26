@@ -10,6 +10,10 @@ El [contexto vivo del MES](docs/CONTEXTO-MES.md) recoge las reglas vigentes, arq
 
 La [guía de OF con varias piezas](docs/OF-VARIAS-PIEZAS.md) explica cómo crear una OF por pedido, pesar cada modelo y conservar su trazabilidad.
 
+El [almacén de moldes](docs/ALMACEN-MOLDES.md) permite organizar ubicaciones,
+identificar moldes, registrar entradas y salidas e imprimir etiquetas desde el
+menú principal del MES. Su código y despliegue son independientes del MES.
+
 ## Funcionalidades actuales
 
 - Captura de producción mediante Google Forms
