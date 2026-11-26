@@ -39,4 +39,11 @@ nav button{color:#fff}
 nav button:hover{background:#333;color:#fff}
 nav button.active,nav button.active:hover{background:#fff;color:#1c1c1c}
 
+/* Estanterías enfrentadas: E2 a la izquierda y E1 a la derecha. */
+.rack-map{display:flex;justify-content:space-between;align-items:flex-start;gap:48px;overflow-x:auto;padding:8px 0}
+.rack-map .rack{flex:0 0 auto;margin:0;padding-left:14px}
+.rack-map .rack h3{margin:0 0 18px}
+.rack-map .levels{flex-wrap:nowrap}
+@media(max-width:700px){.rack-map{gap:24px}}
+
 </style>
