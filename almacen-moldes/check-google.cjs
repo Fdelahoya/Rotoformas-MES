@@ -13,6 +13,25 @@ function fixture(){
 }
 const entry={mold:'mold-unique-001',kind:'Entrada',location:'E1M1N1',person:'Responsable escrito a mano',notes:'Inventario ficticio'};
 {
+ // Google puede devolver las propiedades de los objetos en otro orden.
+ const reorder=value=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).reverse().map(k=>[k,reorder(value[k])])):value;
+ const emptyHistory=fixture();emptyHistory.login('admin@example.test');const first=reorder(emptyHistory.state);
+ first.locations.push({id:'shelf2',code:'E2M1N1',e:2,m:1,n:1});
+ assert.equal(emptyHistory.call('warehousePutState',first,7,false).state.locations.length,3);
+ const f=fixture();f.login('admin@example.test');
+ f.call('warehouseRecordMovement',entry,7);
+ const next=reorder(f.db().state),existing=structuredClone(next.locations);
+ for(let m=1;m<=11;m++)for(let n=1;n<=3;n++)next.locations.push({id:`e2-${m}-${n}`,code:`E2M${m}N${n}`,e:2,m,n});
+ const result=f.call('warehousePutState',next,8,false);
+ assert.equal(result.state.locations.length,35);
+ assert.deepEqual(f.db().state.locations.slice(0,2),existing);
+ assert.equal(result.state.moves.length,1);
+ for(const tamper of [s=>s.locations[0].id='replacement',s=>s.locations.pop(),s=>s.locations[0].extra=true,s=>s.owners[0].name='Modificado',s=>s.moves[0].person='Otro responsable']){
+  const forged=reorder(f.db().state),before=f.raw();tamper(forged);
+  assert.throws(()=>f.call('warehousePutState',forged,9,false),/catálogos|historial/);assert.equal(f.raw(),before);
+ }
+}
+{
  const f=fixture(),r=f.call('warehouseGetState');assert.equal(r.access.role,'consulta');assert.equal(r.state.molds[0].id,'mold-unique-001');assert.equal(r.state.molds[0].location,'');
  for(const identity of ['', 'unlisted@example.test','plant@example.test.evil']){
   f.login(identity);const before=f.raw(),stats=f.stats();

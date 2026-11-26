@@ -114,11 +114,20 @@ function warehouseRestoreBackup(input, revision) {
     return warehouseSave_(db, next, access, 'restore', true);
   } finally { lock.releaseLock(); }
 }
+// El transporte de Apps Script no garantiza el orden de las claves de objetos.
+// Se conservan tipos, campos y orden de arrays al comparar los datos protegidos.
+function warehouseSameValue_(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => warehouseSameValue_(v, b[i]));
+  const keys = Object.keys(a), otherKeys = Object.keys(b);
+  return keys.length === otherKeys.length && keys.every(k => Object.prototype.hasOwnProperty.call(b, k) && warehouseSameValue_(a[k], b[k]));
+}
 function warehouseCheckChange_(before, after) {
-  if (JSON.stringify(before.moves) !== JSON.stringify(after.moves)) throw new Error('El historial solo se modifica registrando movimientos.');
+  if (!warehouseSameValue_(before.moves, after.moves)) throw new Error('El historial solo se modifica registrando movimientos.');
   for (const key of ['owners', 'types', 'locations']) for (const old of before[key]) {
     const current = after[key].find(x => x.id === old.id);
-    if (!current || JSON.stringify(current) !== JSON.stringify(old)) throw new Error('No se pueden eliminar ni reescribir catálogos o ubicaciones existentes.');
+    if (!current || !warehouseSameValue_(current, old)) throw new Error('No se pueden eliminar ni reescribir catálogos o ubicaciones existentes.');
   }
   for (const mold of before.molds) {
     const current = after.molds.find(x => x.id === mold.id);
