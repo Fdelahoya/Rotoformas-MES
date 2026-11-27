@@ -14,6 +14,8 @@ El [almacén de moldes](docs/ALMACEN-MOLDES.md) permite organizar ubicaciones,
 identificar moldes, registrar entradas y salidas e imprimir etiquetas desde el
 menú principal del MES. Su código y despliegue son independientes del MES.
 
+Las [instrucciones de embalado](docs/INSTRUCCIONES-EMBALADO.md) mantienen las fichas dentro del MES, en la misma pestaña y con su menú lateral. Código reproducible, mapa de páginas y comprobaciones en [embalado/](embalado/README.md).
+
 ## Funcionalidades actuales
 
 - Captura de producción mediante Google Forms
@@ -47,4 +49,5 @@ Proyecto en desarrollo activo.
 - [Equipos operativos](docs/EQUIPOS-OPERATIVOS-2026-11-05.md): Raspberry, báscula USB, CUPS y láser, con las comprobaciones fechadas y sus límites.
 
 Los QR de un lote comparten un enlace permanente. El invitado accede sin contraseña a la ficha reducida y la cuenta autorizada conserva la trazabilidad completa. La preparación de etiqueta no mueve stock; el marcado del láser sigue siendo manual.
+
 

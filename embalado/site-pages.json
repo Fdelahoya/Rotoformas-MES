@@ -1,0 +1,390 @@
+{
+  "pages": [
+    {
+      "productId": "tc-deposito-1500-lts-polietileno",
+      "title": "Embalado - TC Deposito 1500 lts Polietileno",
+      "path": "embalado-tc-deposito-1500-lts-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-deposito-2250-lts-polietileno",
+      "title": "Embalado - TC Deposito 2250 lts Polietileno",
+      "path": "embalado-tc-deposito-2250-lts-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-auxiliar-dep-evolution",
+      "title": "Embalado - TC Auxiliar Dep. Evolution",
+      "path": "embalado-tc-auxiliar-dep-evolution",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-deposito-1200-lts-polietileno",
+      "title": "Embalado - TC DEposito 1200 lts Polietileno",
+      "path": "embalado-tc-deposito-1200-lts-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-envolvente-polietileno",
+      "title": "Embalado - TC Envolvente Polietileno",
+      "path": "embalado-tc-envolvente-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-deposito-1100-lts-polietileno",
+      "title": "Embalado - TC Deposito 1100 lts Polietileno",
+      "path": "embalado-tc-deposito-1100-lts-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-auxiliar-delantero-250-lts",
+      "title": "Embalado - TC Auxiliar delantero 250 lts",
+      "path": "embalado-tc-auxiliar-delantero-250-lts",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-auxiliar-delantero-135-lts",
+      "title": "Embalado - TC Auxiliar delantero 135 lts",
+      "path": "embalado-tc-auxiliar-delantero-135-lts",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tc-auxiliar-delantero-150-lts",
+      "title": "Embalado - TC Auxiliar delantero 150 lts",
+      "path": "embalado-tc-auxiliar-delantero-150-lts",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "et-tramo-recto-polietileno",
+      "title": "Embalado - ET Tramo recto Polietileno",
+      "path": "embalado-et-tramo-recto-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tobogán-abierto-inferior",
+      "title": "Embalado - Tobogán Abierto - Inferior",
+      "path": "embalado-tobogan-abierto-inferior",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tobogán-abierto-superior",
+      "title": "Embalado - Tobogán Abierto - Superior",
+      "path": "embalado-tobogan-abierto-superior",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tobogán-abierto-salida",
+      "title": "Embalado - Tobogán Abierto - Salida",
+      "path": "embalado-tobogan-abierto-salida",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tobogán-abierto-entrada",
+      "title": "Embalado - Tobogán Abierto - Entrada",
+      "path": "embalado-tobogan-abierto-entrada",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "et-tubo-t",
+      "title": "Embalado - ET Tubo T",
+      "path": "embalado-et-tubo-t",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "mh-cuerpo-filtro-1-boca",
+      "title": "Embalado - MH Cuerpo filtro 1 boca",
+      "path": "embalado-mh-cuerpo-filtro-1-boca",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "mh-cuerpo-filtro-2-bocas",
+      "title": "Embalado - MH Cuerpo filtro 2 bocas",
+      "path": "embalado-mh-cuerpo-filtro-2-bocas",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "px-embudo-xl-150-l",
+      "title": "Embalado - PX Embudo XL 150 L",
+      "path": "embalado-px-embudo-xl-150-l",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "sl-tolva-micro-28-lt-2-sal",
+      "title": "Embalado - Tolva Micro 28 Lt 2 bocas",
+      "path": "embalado-sl-tolva-micro-28-lt-2-sal",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "sl-tolva-microgranulados",
+      "title": "Embalado - Tolva Microgranulados",
+      "path": "embalado-sl-tolva-microgranulados",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "sl-tolva-abono-300-lts",
+      "title": "Embalado - Tolva Abono 300 lts",
+      "path": "embalado-sl-tolva-abono-300-lts",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "rtf-tejadillo-largo-polietileno",
+      "title": "Embalado - RTF Tejadillo largo Polietileno",
+      "path": "embalado-rtf-tejadillo-largo-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "rtf-chimenea-encaj-polietileno-63",
+      "title": "Embalado - RTF Chimenea ENCAJ. Polietileno 63",
+      "path": "embalado-rtf-chimenea-encaj-polietileno-63",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "ty-dep-arras-poli-1500-lts-eco",
+      "title": "Embalado - TY Dep.Arras.Poli 1500 lts ECO",
+      "path": "embalado-ty-dep-arras-poli-1500-lts-eco",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "ty-auxiliar-dep-arrastrado-1500-lts",
+      "title": "Embalado - TY Auxiliar Dep. Arrastrado 1500 lts",
+      "path": "embalado-ty-auxiliar-dep-arrastrado-1500-lts",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "stk-tobera-d-900-915-x-400",
+      "title": "Embalado - STK TOBERA D-900 (915 X 400)",
+      "path": "embalado-stk-tobera-d-900-915-x-400",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "portatapas-madrid-360",
+      "title": "Embalado - Portatapas Madrid 360",
+      "path": "embalado-portatapas-madrid-360",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "portatapas-oval-2000",
+      "title": "Embalado - Portatapas OVAL 2000",
+      "path": "embalado-portatapas-oval-2000",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "ox-disair-basic",
+      "title": "Embalado - OX Disair Basic",
+      "path": "embalado-ox-disair-basic",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "bs-carcasa-bingo",
+      "title": "Embalado - BS Carcasa bingo",
+      "path": "embalado-bs-carcasa-bingo",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "atril-nagoya",
+      "title": "Embalado - Atril Nagoya",
+      "path": "embalado-atril-nagoya",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "ps-papelera-zurich-660mm",
+      "title": "Embalado - PS Papelera Zurich (660mm)",
+      "path": "embalado-ps-papelera-zurich-660mm",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "bm-portamatriculas",
+      "title": "Embalado - Portamatrículas",
+      "path": "embalado-bm-portamatriculas",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "cono-doble-boca-cajetin",
+      "title": "Embalado - Cono Doble Boca Cajetin",
+      "path": "embalado-cono-doble-boca-cajetin",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "tobera-canon-200",
+      "title": "Embalado - Tobera cañon 200",
+      "path": "embalado-tobera-canon-200",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "et-peldaño-recto-polietileno",
+      "title": "Embalado - ET Peldaño Recto Polietileno",
+      "path": "embalado-et-peldano-recto-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "et-panel-agujero-polietileno",
+      "title": "Embalado - ET Panel agujero Polietileno",
+      "path": "embalado-et-panel-agujero-polietileno",
+      "hiddenFromNavigation": true
+    },
+    {
+      "productId": "et-codo-90º-polietileno",
+      "title": "Embalado - ET Codo 90º Polietileno",
+      "path": "embalado-et-codo-90o-polietileno",
+      "hiddenFromNavigation": true
+    }
+  ],
+  "imageLinks": [
+    {
+      "label": "Depósito 1500 lts Polietileno",
+      "productId": "tc-deposito-1500-lts-polietileno"
+    },
+    {
+      "label": "Depósito 2250 lts Polietileno",
+      "productId": "tc-deposito-2250-lts-polietileno"
+    },
+    {
+      "label": "Auxiliar Deposito evolution",
+      "productId": "tc-auxiliar-dep-evolution"
+    },
+    {
+      "label": "Depósito 1200 lts Polietileno",
+      "productId": "tc-deposito-1200-lts-polietileno"
+    },
+    {
+      "label": "Envolvente Polietileno",
+      "productId": "tc-envolvente-polietileno"
+    },
+    {
+      "label": "Deposito 1100 Lts",
+      "productId": "tc-deposito-1100-lts-polietileno"
+    },
+    {
+      "label": "Auxiliar delantero 250 lts",
+      "productId": "tc-auxiliar-delantero-250-lts"
+    },
+    {
+      "label": "Auxiliar delantero 135 lts",
+      "productId": "tc-auxiliar-delantero-135-lts"
+    },
+    {
+      "label": "Auxiliar delantero 150 lts",
+      "productId": "tc-auxiliar-delantero-150-lts"
+    },
+    {
+      "label": "Peldaño curvo Polietileno",
+      "productId": "et-peldaño-recto-polietileno"
+    },
+    {
+      "label": "Panel Agujero Polietileno",
+      "productId": "et-panel-agujero-polietileno"
+    },
+    {
+      "label": "Codo 90º Polietileno",
+      "productId": "et-codo-90º-polietileno"
+    },
+    {
+      "label": "Tramo recto polietileno",
+      "productId": "et-tramo-recto-polietileno"
+    },
+    {
+      "label": "Tobogán Abierto - Inferior",
+      "productId": "tobogán-abierto-inferior"
+    },
+    {
+      "label": "Tobogán Abierto - SUperior",
+      "productId": "tobogán-abierto-superior"
+    },
+    {
+      "label": "Tobogán Abierto - Salida",
+      "productId": "tobogán-abierto-salida"
+    },
+    {
+      "label": "Tobogán Abierto - Entrada",
+      "productId": "tobogán-abierto-entrada"
+    },
+    {
+      "label": "Tobogán Abierto - Salida",
+      "productId": "tobogán-abierto-salida"
+    },
+    {
+      "label": "Tubo T",
+      "productId": "et-tubo-t"
+    },
+    {
+      "label": "Cuerpo filtro 1 boca",
+      "productId": "mh-cuerpo-filtro-1-boca"
+    },
+    {
+      "label": "Cuerpo filtro 2 bocas",
+      "productId": "mh-cuerpo-filtro-2-bocas"
+    },
+    {
+      "label": "Embudo XL 150 L",
+      "productId": "px-embudo-xl-150-l"
+    },
+    {
+      "label": "Tolva micro 28 Lt 2 bocas",
+      "productId": "sl-tolva-micro-28-lt-2-sal"
+    },
+    {
+      "label": "Tolva Microgranulados",
+      "productId": "sl-tolva-microgranulados"
+    },
+    {
+      "label": "Tolva Abono 300 lts",
+      "productId": "sl-tolva-abono-300-lts"
+    },
+    {
+      "label": "Tejadillo Largo Polietileno",
+      "productId": "rtf-tejadillo-largo-polietileno"
+    },
+    {
+      "label": "Chimenea 63",
+      "productId": "rtf-chimenea-encaj-polietileno-63"
+    },
+    {
+      "label": "Deposito Arras. Poli. 1500 lts ECO",
+      "productId": "ty-dep-arras-poli-1500-lts-eco"
+    },
+    {
+      "label": "Auxiliar Dep. Arras. 1500 lts",
+      "productId": "ty-auxiliar-dep-arrastrado-1500-lts"
+    },
+    {
+      "label": "Tobera cañon 200",
+      "productId": "tobera-canon-200"
+    },
+    {
+      "label": "STK TOBERA D-900 (915 X 400)",
+      "productId": "stk-tobera-d-900-915-x-400"
+    },
+    {
+      "label": "Portatapas Madrid 360",
+      "productId": "portatapas-madrid-360"
+    },
+    {
+      "label": "Portatapas OVAL 2000",
+      "productId": "portatapas-oval-2000"
+    },
+    {
+      "label": "OX Disair Basic",
+      "productId": "ox-disair-basic"
+    },
+    {
+      "label": "Carcasa Bingo social",
+      "productId": "bs-carcasa-bingo"
+    },
+    {
+      "label": "Atril Nagoya",
+      "productId": "atril-nagoya"
+    },
+    {
+      "label": "Papelera Zurich 600 mm",
+      "productId": "ps-papelera-zurich-660mm"
+    },
+    {
+      "label": "BM Portamatriculas",
+      "productId": "bm-portamatriculas"
+    },
+    {
+      "label": "Cono Doble Boca Cajetin",
+      "productId": "cono-doble-boca-cajetin"
+    }
+  ]
+}

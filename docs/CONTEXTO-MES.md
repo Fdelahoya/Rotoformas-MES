@@ -1,5 +1,15 @@
 # Contexto vivo del MES de Rotoformas
 
+Instrucciones de embalado, 27/11/2026: implantadas 38 fichas independientes de
+solo lectura y 39 enlaces internos de imágenes en Google Sites. Se abren en la
+misma pestaña y conservan el menú lateral; el modo `mes=1` evita la cabecera
+repetida. El proyecto independiente de Apps Script está en v3 con acceso
+DOMAIN / USER_DEPLOYING. Mantiene fotografías, parámetros de embalado en blanco
+y seis pasos pendientes de datos. Se verificaron todos los destinos y una
+apertura con 14 pestañas antes y después. No se modifican las instrucciones de
+trabajo, stock ni equipos. Código, reproducción y límites de la configuración
+nativa de Sites: [Instrucciones de embalado](INSTRUCCIONES-EMBALADO.md).
+
 Almacén de moldes, 26/11/2026: se conserva en el repositorio la herramienta
 independiente de Apps Script, integrada en el menú del MES y publicada también
 como página de primer nivel de Google Sites. El propietario solicitó consulta
@@ -267,4 +277,5 @@ Conserva los identificadores y URLs de QR ya distribuidos, la separación públi
 ## Preparación de materias primas por línea — 09/11/2026
 
 Publicado en versiones 63 (planta/QR) y 64 (privada). Cada línea muestra pendiente/asignada y sus lotes; cabecera con líneas preparadas. Pesaje bloqueado en UI y servidor hasta configurar PE y decidir pigmento. Guardar actualiza solo esa línea y confirma el resultado. Véase [Materias primas por OF](MATERIAS-PRIMAS-POR-OF.md). No cambia stock, equipos, URLs ni registros históricos.
+
 
