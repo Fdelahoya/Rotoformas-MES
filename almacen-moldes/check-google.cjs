@@ -79,5 +79,21 @@ const entry={mold:'mold-unique-001',kind:'Entrada',location:'E1M1N1',person:'Res
 }
 const js=fs.readFileSync(path.join(dir,'Client.html'),'utf8').replace(/^<script>\s*/, '').replace(/\s*<\/script>$/, '');new vm.Script(js);
 assert.ok(!js.includes('localStorage'));assert.ok(js.includes("rpc('warehouseRecordMovement',values,revision)"));assert.ok(js.includes("restore?'warehouseRestoreBackup':'warehousePutState'"));assert.ok(js.includes('Identidad acreditada'));assert.ok(js.includes('actorVerified===true'));
+{
+ // Ejercita el botón sin moldes y el formulario normal, sin escribir datos reales.
+ const elements={},submit={hidden:false},calls=[];
+ const element=id=>elements[id]||(elements[id]={querySelector:()=>submit,close:()=>calls.push('close')});
+ const state={molds:[],locations:[]},access={canAdmin:true};let dialog;
+ const ctx=vm.createContext({state,currentAccess:access,$:element,modal:(title,html,save)=>{submit.hidden=false;dialog={title,html,save}},moldForm:()=>calls.push('register'),recordMovement:v=>calls.push(v),select:()=>'',label:()=>'',notes:()=>''});
+ vm.runInContext(js.slice(js.indexOf('function movementNeedsMold'),js.indexOf('function movementsTable')),ctx);
+ vm.runInContext('movement()',ctx);assert.match(dialog.title,/registra un molde/);assert.match(dialog.html,/Registrar primer molde/);assert.equal(submit.hidden,true);
+ elements['register-first-mold'].onclick();assert.deepEqual(calls,['close','register']);
+ access.canAdmin=false;vm.runInContext('movement()',ctx);assert.match(dialog.html,/administración/);assert.ok(!dialog.html.includes('<button'));assert.equal(submit.hidden,true);
+ state.molds.push({id:'m',code:'CLI-DEP-001',name:'Ficticio',status:'Pendiente de ubicar'});state.locations.push({code:'E1M1N1'});
+ vm.runInContext('movement("m")',ctx);assert.equal(dialog.title,'Registrar movimiento');assert.equal(submit.hidden,false);
+ const values={mold:'m',kind:'Entrada',location:'E1M1N1',person:'Prueba'};dialog.save(values);assert.equal(calls.at(-1),values);
+ elements['f-kind'].value='Salida';elements['f-kind'].onchange();assert.equal(elements['f-location'].required,false);assert.equal(elements['exit-fields'].hidden,false);
+ elements['f-kind'].value='Entrada';elements['f-kind'].onchange();assert.equal(elements['f-location'].required,true);assert.equal(elements['exit-fields'].hidden,true);
+}
 const manifest=JSON.parse(fs.readFileSync(path.join(dir,'appsscript.json')));assert.equal(manifest.webapp.access,'ANYONE_ANONYMOUS');assert.equal(manifest.webapp.executeAs,'USER_DEPLOYING');
 console.log('Almacén: consulta pública; denegación de toda escritura anónima/no autorizada; movimientos de planta calculados en servidor; administración y restauración restringidas; identidad acreditada separada; historial importado sin acreditar; concurrencia y respaldo comprobados con datos ficticios.');
