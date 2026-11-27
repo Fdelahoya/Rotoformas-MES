@@ -19,6 +19,7 @@ replace("$('form').onsubmit=e=>{e.preventDefault();try{fn(Object.fromEntries(new
 replace('function modal(title,html,fn){',"function modal(title,html,fn){$('form').querySelector('button[type=submit]').hidden=false;");
 replace('function moldForm(id){',"function moldForm(id){if(!currentAccess.canAdmin){showMoldDetails(id);return;}");
 replace('v=>mutate(s=>Model.move(s,v))','v=>recordMovement(v)');
+replace('movementNeedsMold();return','movementNeedsMold(currentAccess.canAdmin);return');
 replace("label('Persona responsable','person'","label('Responsable declarado (escrito a mano)','person'");
 replace(' bind();',' bind();applyAccessUI();');
 replace('<section class="panel"><div class="toolbar"><h2>Prepara tu almacén','<section class="panel" data-admin-panel><div class="toolbar"><h2>Prepara tu almacén');

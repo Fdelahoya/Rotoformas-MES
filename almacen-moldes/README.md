@@ -90,6 +90,12 @@ corporativa recibe administración. Las pruebas de movimientos y restauración u
 inventario ficticio; no se realizaron esas operaciones sobre datos reales.
 Fusionar la PR no vuelve a publicar Apps Script automáticamente.
 
+Corrección posterior del 26/11/2026, almacén v10: la comparación de ubicaciones,
+catálogos e historial ignora el orden de las claves de los objetos devueltos por
+Apps Script. Permite añadir estanterías sin interpretar ese cambio de orden como
+una modificación de registros existentes. Conserva la protección de sus valores
+y del orden del historial. Validado con inventario ficticio, sin modificar el real.
+
 El almacén es un proyecto independiente del MES. Crear localmente
 `almacen-moldes/.clasp.json` (ignorado por Git) con:
 
